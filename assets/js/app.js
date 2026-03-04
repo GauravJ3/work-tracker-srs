@@ -1037,9 +1037,11 @@ function renderBlindList() {
       const solved = state.game.solvedBlind.includes(item.id);
       const inDeck = state.game.dailyDeck.includes(item.id);
       const primaryUrl = item.premium && state.settings.preferAltLinks ? item.alt : item.link;
+      const catClass = `cat-${normalize(item.category).replaceAll("_", "-")}`;
       const hp = getCardHp(item.difficulty);
       const energy = getCategoryEnergy(item.category);
-      return `<article class="item quest-card pokemon-card ${inTracker ? "is-tracked" : ""} ${solved ? "is-solved" : ""} ${item.difficulty === "Hard" ? "foil-hard" : ""} cat-${normalize(item.category).replaceAll("_", "-")}" data-card-id="${item.id}" draggable="true">
+      const sigil = getCardSigil(item.title);
+      return `<article class="item quest-card pokemon-card ${inTracker ? "is-tracked" : ""} ${solved ? "is-solved" : ""} ${item.difficulty === "Hard" ? "foil-hard" : ""} ${catClass}" data-card-id="${item.id}" draggable="true">
         <div class="pokemon-card-inner">
           <div class="pokemon-face pokemon-front">
             <div class="card-topline pokemon-top">
@@ -1050,8 +1052,9 @@ function renderBlindList() {
               <strong><a href="${primaryUrl}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a></strong>
               <span class="pokemon-hp">HP ${hp}</span>
             </div>
-            <div class="pokemon-art" data-flip-card="${item.id}">
+            <div class="pokemon-art ${catClass}" data-flip-card="${item.id}">
               <div class="pokemon-art-glow"></div>
+              <div class="pokemon-sigil">${sigil}</div>
               <div class="pokemon-energy">${energy}</div>
             </div>
             <div class="pokemon-moves">
@@ -1184,6 +1187,13 @@ function getCategoryEnergy(category) {
     backtracking: "R",
   };
   return map[key] || "Q";
+}
+
+function getCardSigil(title) {
+  const clean = String(title || "").replace(/[^a-zA-Z0-9 ]+/g, "").trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return clean.slice(0, 2).toUpperCase() || "Q";
 }
 
 function clampNumber(raw, min, max, fallback) {
