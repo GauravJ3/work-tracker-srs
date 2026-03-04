@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./assets/css/styles.css" />
   </head>
   <body>
     <div class="background-glow"></div>
@@ -146,6 +146,7 @@
           <h2>Blind 75 Arena</h2>
           <span id="blindCount" class="badge">0 shown</span>
         </div>
+        <p class="meta">Collect these like battle cards. Add, solve, and level up your deck.</p>
         <div class="row three-col">
           <input id="b75Search" placeholder="Search question" />
           <select id="b75Category"></select>
@@ -153,11 +154,18 @@
         </div>
         <div class="button-row">
           <button id="loadBlindSetBtn" class="btn-secondary">Load all into tracker</button>
+          <button id="clearDeckBtn" class="btn-ghost">Clear daily deck</button>
         </div>
-        <div id="blindList" class="stack"></div>
+        <div id="blindList" class="blind-grid"></div>
+        <div class="section-head" style="margin-top: 12px">
+          <h2>Daily Deck Builder</h2>
+          <span id="dailyDeckCount" class="badge">0 cards</span>
+        </div>
+        <div id="dailyDeckDrop" class="deck-drop">Drag cards here to build today&apos;s deck</div>
+        <div id="dailyDeckList" class="stack"></div>
       </section>
     </main>
 
-    <script src="./app.js"></script>
+    <script src="./assets/js/app.js"></script>
   </body>
 </html>

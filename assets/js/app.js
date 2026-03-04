@@ -217,6 +217,7 @@ const state = {
     streak: 0,
     totalReviews: 0,
     solvedBlind: [],
+    dailyDeck: [],
     unlocked: [],
     daily: { date: "", reviews: 0, solves: 0 },
   },
@@ -257,6 +258,10 @@ const els = {
   b75Category: document.getElementById("b75Category"),
   b75Difficulty: document.getElementById("b75Difficulty"),
   loadBlindSetBtn: document.getElementById("loadBlindSetBtn"),
+  clearDeckBtn: document.getElementById("clearDeckBtn"),
+  dailyDeckDrop: document.getElementById("dailyDeckDrop"),
+  dailyDeckList: document.getElementById("dailyDeckList"),
+  dailyDeckCount: document.getElementById("dailyDeckCount"),
 };
 
 let refreshTimer = null;
@@ -310,13 +315,54 @@ function bindEvents() {
 
   els.challengeBtn.addEventListener("click", rollChallenge);
   els.loadBlindSetBtn.addEventListener("click", loadBlindSetToTracker);
+  els.clearDeckBtn.addEventListener("click", clearDailyDeck);
   [els.b75Search, els.b75Category, els.b75Difficulty].forEach((el) => el.addEventListener("input", renderBlindList));
 
   els.blindList.addEventListener("click", (event) => {
     const addBtn = event.target.closest("[data-add-blind]");
-    if (addBtn) addBlindToTracker(addBtn.getAttribute("data-add-blind"));
+    if (addBtn) {
+      const card = addBtn.closest("[data-card-id]");
+      addBlindToTracker(addBtn.getAttribute("data-add-blind"), card);
+    }
     const solveBtn = event.target.closest("[data-solve-blind]");
     if (solveBtn) markBlindSolved(solveBtn.getAttribute("data-solve-blind"));
+    const deckBtn = event.target.closest("[data-deck-add]");
+    if (deckBtn) addToDailyDeck(deckBtn.getAttribute("data-deck-add"));
+    const deckRemoveBtn = event.target.closest("[data-deck-remove]");
+    if (deckRemoveBtn) removeFromDailyDeck(deckRemoveBtn.getAttribute("data-deck-remove"));
+  });
+
+  els.blindList.addEventListener("dragstart", (event) => {
+    const card = event.target.closest("[data-card-id]");
+    if (!card) return;
+    event.dataTransfer?.setData("text/plain", card.getAttribute("data-card-id"));
+    card.classList.add("is-dragging");
+  });
+
+  els.blindList.addEventListener("dragend", (event) => {
+    const card = event.target.closest("[data-card-id]");
+    if (card) card.classList.remove("is-dragging");
+  });
+
+  els.dailyDeckDrop.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    els.dailyDeckDrop.classList.add("active");
+  });
+
+  els.dailyDeckDrop.addEventListener("dragleave", () => {
+    els.dailyDeckDrop.classList.remove("active");
+  });
+
+  els.dailyDeckDrop.addEventListener("drop", (event) => {
+    event.preventDefault();
+    els.dailyDeckDrop.classList.remove("active");
+    const blindId = event.dataTransfer?.getData("text/plain");
+    if (blindId) addToDailyDeck(blindId);
+  });
+
+  els.dailyDeckList.addEventListener("click", (event) => {
+    const removeBtn = event.target.closest("[data-deck-remove]");
+    if (removeBtn) removeFromDailyDeck(removeBtn.getAttribute("data-deck-remove"));
   });
 }
 
@@ -567,10 +613,11 @@ function markComplete(itemId) {
   render();
 }
 
-function addBlindToTracker(blindId) {
+function addBlindToTracker(blindId, cardEl) {
   const ref = BLIND_ITEMS.find((i) => i.id === blindId);
   if (!ref) return;
   if (state.items.some((item) => item.blindId === blindId)) return;
+  if (cardEl) animateCardToTracker(cardEl);
   state.items.unshift({
     id: `blind-${blindId}`,
     blindId,
@@ -584,6 +631,32 @@ function addBlindToTracker(blindId) {
   grantXp(6, "Blind item added");
   save();
   render();
+}
+
+function animateCardToTracker(cardEl) {
+  const targetEl = els.allItems?.closest("section") || els.totalCount;
+  if (!cardEl || !targetEl) return;
+
+  const from = cardEl.getBoundingClientRect();
+  const to = targetEl.getBoundingClientRect();
+  const clone = cardEl.cloneNode(true);
+
+  clone.classList.add("flying-card");
+  clone.style.left = `${from.left}px`;
+  clone.style.top = `${from.top}px`;
+  clone.style.width = `${from.width}px`;
+  clone.style.height = `${from.height}px`;
+  document.body.appendChild(clone);
+
+  requestAnimationFrame(() => {
+    clone.style.transition = "transform 520ms cubic-bezier(0.2, 0.8, 0.22, 1), opacity 520ms ease";
+    clone.style.transform = `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(0.22)`;
+    clone.style.opacity = "0.15";
+  });
+
+  cardEl.classList.add("card-picked");
+  setTimeout(() => cardEl.classList.remove("card-picked"), 520);
+  setTimeout(() => clone.remove(), 560);
 }
 
 function markBlindSolved(blindId) {
@@ -617,6 +690,30 @@ function loadBlindSetToTracker() {
   });
   grantXp(25, "Blind 75 loaded");
   setStatus(`Added ${added} Blind 75 items to your tracker.`);
+  save();
+  render();
+}
+
+function addToDailyDeck(blindId) {
+  if (!BLIND_ITEMS.some((item) => item.id === blindId)) return;
+  if (!state.game.dailyDeck.includes(blindId)) {
+    state.game.dailyDeck.push(blindId);
+    grantXp(3, "Deck updated");
+    save();
+    render();
+  }
+}
+
+function removeFromDailyDeck(blindId) {
+  const next = state.game.dailyDeck.filter((id) => id !== blindId);
+  if (next.length === state.game.dailyDeck.length) return;
+  state.game.dailyDeck = next;
+  save();
+  render();
+}
+
+function clearDailyDeck() {
+  state.game.dailyDeck = [];
   save();
   render();
 }
@@ -795,6 +892,7 @@ function render() {
     ? state.reminders.slice(0, 30).map((log) => `<div>${escapeHtml(log)}</div>`).join("")
     : `<div class="meta">No reminders sent yet.</div>`;
   renderBlindList();
+  renderDailyDeck();
 }
 
 function renderBlindList() {
@@ -809,11 +907,16 @@ function renderBlindList() {
   });
   els.blindCount.textContent = `${filtered.length} shown`;
   els.blindList.innerHTML = filtered
-    .map((item) => {
+    .map((item, idx) => {
       const inTracker = state.items.some((it) => it.blindId === item.id);
       const solved = state.game.solvedBlind.includes(item.id);
+      const inDeck = state.game.dailyDeck.includes(item.id);
       const primaryUrl = item.premium && state.settings.preferAltLinks ? item.alt : item.link;
-      return `<article class="item">
+      return `<article class="item quest-card ${inTracker ? "is-tracked" : ""} ${solved ? "is-solved" : ""} ${item.difficulty === "Hard" ? "foil-hard" : ""} cat-${normalize(item.category).replaceAll("_", "-")}" data-card-id="${item.id}" draggable="true">
+        <div class="card-topline">
+          <span class="card-type">${escapeHtml(item.category)}</span>
+          <span class="card-rank">#${String(idx + 1).padStart(2, "0")}</span>
+        </div>
         <div class="item-head">
           <strong><a href="${primaryUrl}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a></strong>
           <div>
@@ -821,9 +924,10 @@ function renderBlindList() {
             ${item.premium ? '<span class="premium-pill">Premium</span>' : ""}
           </div>
         </div>
-        <div class="meta">${escapeHtml(item.category)}</div>
+        <div class="meta">${solved ? "Captured" : inTracker ? "In your deck" : "Uncaptured"}</div>
         <div class="item-actions">
           <button data-add-blind="${item.id}" ${inTracker ? "disabled" : ""}>${inTracker ? "In tracker" : "Add to tracker"}</button>
+          <button data-deck-add="${item.id}" ${inDeck ? "disabled" : ""}>${inDeck ? "In daily deck" : "Add to daily deck"}</button>
           <button data-solve-blind="${item.id}" ${solved ? "disabled" : ""}>${solved ? "Solved" : "Mark solved +20XP"}</button>
           <a href="${item.link}" target="_blank" rel="noreferrer">LeetCode</a>
           <a href="${item.alt}" target="_blank" rel="noreferrer">Alt</a>
@@ -831,6 +935,30 @@ function renderBlindList() {
       </article>`;
     })
     .join("");
+}
+
+function renderDailyDeck() {
+  const cards = state.game.dailyDeck
+    .map((id) => BLIND_ITEMS.find((item) => item.id === id))
+    .filter(Boolean);
+  els.dailyDeckCount.textContent = `${cards.length} cards`;
+  els.dailyDeckList.innerHTML = cards.length
+    ? cards
+        .map(
+          (item, idx) => `<article class="item">
+      <div class="item-head">
+        <strong><a href="${item.link}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a></strong>
+        <span class="card-rank">S${idx + 1}</span>
+      </div>
+      <div class="meta">${escapeHtml(item.category)} | ${item.difficulty}</div>
+      <div class="item-actions">
+        <button data-deck-remove="${item.id}">Remove</button>
+        <a href="${item.link}" target="_blank" rel="noreferrer">Open</a>
+      </div>
+    </article>`,
+        )
+        .join("")
+    : `<p class="meta">No cards in your daily deck yet. Drag cards into the drop zone above.</p>`;
 }
 
 function renderDueItem(item) {
@@ -945,6 +1073,7 @@ function load() {
       ...state.game,
       ...(parsed.game || {}),
       solvedBlind: Array.isArray(parsed.game?.solvedBlind) ? parsed.game.solvedBlind : [],
+      dailyDeck: Array.isArray(parsed.game?.dailyDeck) ? parsed.game.dailyDeck : [],
       unlocked: Array.isArray(parsed.game?.unlocked) ? parsed.game.unlocked : [],
     };
   } catch {

@@ -32,7 +32,21 @@ To allow sync from browser, your sheet should be shareable publicly:
 - Click **Share**
 - Set to **Anyone with the link can view**
 
-The app converts your sheet URL to CSV export format and reads the tab using `gid`.
+The app reads your sheet tab using `gid` via Google GViz JSON endpoint.
+
+## Project structure
+
+```text
+work-tracker-srs/
+  index.html
+  README.md
+  .gitignore
+  assets/
+    css/
+      styles.css
+    js/
+      app.js
+```
 
 ## Expected columns (flexible)
 
