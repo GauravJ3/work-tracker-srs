@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Work Pulse</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="background-glow"></div>
+    <div id="confettiLayer" class="confetti-layer" aria-hidden="true"></div>
+    <main class="app-shell">
+      <header class="hero">
+        <p class="eyebrow">Work + Learning System</p>
+        <h1>Work Pulse</h1>
+        <p class="subtitle">
+          Pull tasks from your Google Sheet, keep them moving, and review with spaced repetition.
+        </p>
+      </header>
+
+      <section class="card setup-card">
+        <h2>Sheet Sync</h2>
+        <div class="row two-col">
+          <label>
+            Google Sheet URL
+            <input
+              id="sheetUrl"
+              type="url"
+              value="https://docs.google.com/spreadsheets/d/1huv5r-2GZAWVe09kVOkUqGrJxYFE3Uv4lb-0bNOlpbY/edit?gid=269471592#gid=269471592"
+              placeholder="Paste sheet URL"
+            />
+          </label>
+          <label>
+            Auto-refresh (minutes)
+            <input id="refreshMinutes" type="number" min="5" max="240" value="30" />
+          </label>
+        </div>
+        <div class="button-row">
+          <button id="syncBtn" class="btn-primary">Sync from Sheet</button>
+          <label class="btn-ghost file-input-wrap">
+            Import CSV
+            <input id="csvFileInput" type="file" accept=".csv,text/csv" />
+          </label>
+          <button id="requestNotifBtn" class="btn-secondary">Enable Notifications</button>
+          <button id="testNotifBtn" class="btn-ghost">Send Test Reminder</button>
+        </div>
+        <label class="toggle-field">
+          <input id="preferAltLinks" type="checkbox" />
+          Prefer alternative links (NeetCode/others) in Blind 75
+        </label>
+        <p id="syncStatus" class="status">Ready.</p>
+      </section>
+
+      <section class="card focus-hide">
+        <h2>Experience Lab</h2>
+        <div class="row two-col">
+          <label>
+            Theme
+            <select id="themeMode">
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+            </select>
+          </label>
+          <label>
+            Layout
+            <select id="layoutMode">
+              <option value="default">Default</option>
+              <option value="compact">Compact</option>
+              <option value="focus">Focus</option>
+            </select>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <label class="toggle-field">
+            <input id="soundEnabled" type="checkbox" checked />
+            Reward sound effects
+          </label>
+          <label class="toggle-field">
+            <input id="confettiEnabled" type="checkbox" checked />
+            Completion confetti
+          </label>
+        </div>
+      </section>
+
+      <section class="stats-grid focus-hide" id="statsGrid"></section>
+
+      <section class="card game-card">
+        <div class="section-head">
+          <h2>Game Hub</h2>
+          <button id="challengeBtn" class="btn-ghost">Give me a challenge</button>
+        </div>
+        <div id="gameHud" class="game-hud"></div>
+        <p id="challengeText" class="meta">Your next challenge appears here.</p>
+        <div class="section-head">
+          <h2>Achievements</h2>
+          <span id="achievementCount" class="badge">0 unlocked</span>
+        </div>
+        <div id="achievementList" class="stack"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>Due for Review</h2>
+          <span id="dueCount" class="badge">0 items</span>
+        </div>
+        <div id="dueList" class="stack"></div>
+      </section>
+
+      <section class="card">
+        <h2>Add Quick Item</h2>
+        <form id="addForm" class="row three-col">
+          <input id="newTitle" required placeholder="Task/topic" />
+          <input id="newCategory" placeholder="Category" />
+          <button class="btn-primary" type="submit">Add</button>
+        </form>
+      </section>
+
+      <section class="card focus-hide">
+        <div class="section-head">
+          <h2>Reminder Center</h2>
+          <label class="inline-field">
+            Every
+            <input id="reminderMinutes" type="number" min="5" max="180" value="20" />
+            min
+          </label>
+        </div>
+        <div id="reminderLog" class="log"></div>
+      </section>
+
+      <section class="card focus-hide">
+        <div class="section-head">
+          <h2>All Work Items</h2>
+          <span id="totalCount" class="badge">0 total</span>
+        </div>
+        <div id="allItems" class="stack"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>Blind 75 Arena</h2>
+          <span id="blindCount" class="badge">0 shown</span>
+        </div>
+        <div class="row three-col">
+          <input id="b75Search" placeholder="Search question" />
+          <select id="b75Category"></select>
+          <select id="b75Difficulty"></select>
+        </div>
+        <div class="button-row">
+          <button id="loadBlindSetBtn" class="btn-secondary">Load all into tracker</button>
+        </div>
+        <div id="blindList" class="stack"></div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
