@@ -209,6 +209,7 @@ const state = {
     layoutMode: "default",
     soundEnabled: true,
     confettiEnabled: true,
+    ambientEnabled: false,
   },
   game: {
     xp: 0,
@@ -236,7 +237,9 @@ const els = {
   layoutMode: document.getElementById("layoutMode"),
   soundEnabled: document.getElementById("soundEnabled"),
   confettiEnabled: document.getElementById("confettiEnabled"),
+  ambientEnabled: document.getElementById("ambientEnabled"),
   confettiLayer: document.getElementById("confettiLayer"),
+  animeScene: document.querySelector(".anime-scene"),
   syncStatus: document.getElementById("syncStatus"),
   dueList: document.getElementById("dueList"),
   allItems: document.getElementById("allItems"),
@@ -266,6 +269,8 @@ const els = {
 
 let refreshTimer = null;
 let reminderTimer = null;
+let ambientCtx = null;
+let ambientTimer = null;
 
 init();
 
@@ -276,6 +281,7 @@ function init() {
   bindEvents();
   applySettingsToInputs();
   applyAppearanceSettings();
+  initSceneParallax();
   render();
   scheduleSync();
   scheduleReminders();
@@ -299,6 +305,7 @@ function bindEvents() {
     els.layoutMode,
     els.soundEnabled,
     els.confettiEnabled,
+    els.ambientEnabled,
   ].forEach((input) => input.addEventListener("change", saveSettingsFromInputs));
 
   els.dueList.addEventListener("click", (event) => {
@@ -319,6 +326,11 @@ function bindEvents() {
   [els.b75Search, els.b75Category, els.b75Difficulty].forEach((el) => el.addEventListener("input", renderBlindList));
 
   els.blindList.addEventListener("click", (event) => {
+    const flipBtn = event.target.closest("[data-flip-card]");
+    if (flipBtn) {
+      toggleCardFlip(flipBtn.getAttribute("data-flip-card"));
+      return;
+    }
     const addBtn = event.target.closest("[data-add-blind]");
     if (addBtn) {
       const card = addBtn.closest("[data-card-id]");
@@ -402,6 +414,7 @@ function saveSettingsFromInputs() {
   state.settings.layoutMode = els.layoutMode.value || "default";
   state.settings.soundEnabled = Boolean(els.soundEnabled.checked);
   state.settings.confettiEnabled = Boolean(els.confettiEnabled.checked);
+  state.settings.ambientEnabled = Boolean(els.ambientEnabled.checked);
   save();
   applyAppearanceSettings();
   scheduleSync();
@@ -418,6 +431,7 @@ function applySettingsToInputs() {
   els.layoutMode.value = state.settings.layoutMode || "default";
   els.soundEnabled.checked = state.settings.soundEnabled !== false;
   els.confettiEnabled.checked = state.settings.confettiEnabled !== false;
+  els.ambientEnabled.checked = state.settings.ambientEnabled === true;
 }
 
 function applyAppearanceSettings() {
@@ -426,6 +440,117 @@ function applyAppearanceSettings() {
   root.setAttribute("data-theme", mode);
   document.body.classList.toggle("mode-compact", state.settings.layoutMode === "compact");
   document.body.classList.toggle("mode-focus", state.settings.layoutMode === "focus");
+  updateAmbientAudio();
+}
+
+function initSceneParallax() {
+  if (!els.animeScene) return;
+  const layers = {
+    sky: els.animeScene.querySelector(".sky-layer"),
+    sunMoon: els.animeScene.querySelector(".sun-moon"),
+    cloudA: els.animeScene.querySelector(".cloud-a"),
+    cloudB: els.animeScene.querySelector(".cloud-b"),
+    field: els.animeScene.querySelector(".field-line"),
+    grass: els.animeScene.querySelector(".grass-band"),
+    boy: els.animeScene.querySelector(".boy-silhouette"),
+    fire: els.animeScene.querySelector(".campfire"),
+  };
+
+  els.animeScene.addEventListener("mousemove", (event) => {
+    const rect = els.animeScene.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / rect.width - 0.5;
+    const y = (event.clientY - rect.top) / rect.height - 0.5;
+    if (layers.sky) layers.sky.style.transform = `translate(${x * 8}px, ${y * 4}px)`;
+    if (layers.sunMoon) layers.sunMoon.style.transform = `translate(${x * 18}px, ${y * 8}px)`;
+    if (layers.cloudA) layers.cloudA.style.transform = `translate(${x * 14}px, ${y * 5}px)`;
+    if (layers.cloudB) layers.cloudB.style.transform = `translate(${x * 20}px, ${y * 6}px)`;
+    if (layers.field) layers.field.style.transform = `translate(${x * 9}px, ${y * 2}px)`;
+    if (layers.grass) layers.grass.style.transform = `translate(${x * 10}px, 0)`;
+    if (layers.boy) layers.boy.style.transform = `translate(calc(-50% + ${x * 5}px), ${y * 2}px)`;
+    if (layers.fire) layers.fire.style.transform = `translate(${x * 4}px, ${y * 3}px)`;
+  });
+
+  els.animeScene.addEventListener("mouseleave", () => {
+    Object.values(layers).forEach((layer) => {
+      if (layer) layer.style.transform = "";
+    });
+  });
+}
+
+function toggleCardFlip(cardId) {
+  const card = els.blindList.querySelector(`[data-card-id="${cardId}"]`);
+  if (!card) return;
+  card.classList.toggle("is-flipped");
+}
+
+function updateAmbientAudio() {
+  if (!state.settings.ambientEnabled) {
+    stopAmbientAudio();
+    return;
+  }
+  startAmbientAudio();
+}
+
+function startAmbientAudio() {
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return;
+  if (!ambientCtx) ambientCtx = new AudioCtx();
+  if (ambientCtx.state === "suspended") ambientCtx.resume();
+  if (ambientTimer) clearInterval(ambientTimer);
+
+  const isDay = state.settings.themeMode === "light";
+  ambientTimer = setInterval(() => {
+    if (isDay) playBirdChirp();
+    else playFireCrackle();
+  }, isDay ? 2300 : 320);
+}
+
+function stopAmbientAudio() {
+  if (ambientTimer) {
+    clearInterval(ambientTimer);
+    ambientTimer = null;
+  }
+  if (ambientCtx) {
+    ambientCtx.close();
+    ambientCtx = null;
+  }
+}
+
+function playBirdChirp() {
+  if (!ambientCtx || Math.random() < 0.36) return;
+  const osc = ambientCtx.createOscillator();
+  const gain = ambientCtx.createGain();
+  osc.type = "sine";
+  const start = ambientCtx.currentTime;
+  const base = 1300 + Math.random() * 900;
+  osc.frequency.setValueAtTime(base, start);
+  osc.frequency.exponentialRampToValueAtTime(base * 1.35, start + 0.08);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(0.02, start + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.13);
+  osc.connect(gain);
+  gain.connect(ambientCtx.destination);
+  osc.start(start);
+  osc.stop(start + 0.14);
+}
+
+function playFireCrackle() {
+  if (!ambientCtx || Math.random() < 0.55) return;
+  const len = Math.floor(ambientCtx.sampleRate * 0.035);
+  const buffer = ambientCtx.createBuffer(1, len, ambientCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < len; i += 1) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const source = ambientCtx.createBufferSource();
+  source.buffer = buffer;
+  const filter = ambientCtx.createBiquadFilter();
+  filter.type = "bandpass";
+  filter.frequency.value = 1100 + Math.random() * 1200;
+  const gain = ambientCtx.createGain();
+  gain.gain.value = 0.014;
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(ambientCtx.destination);
+  source.start();
 }
 
 function addManualItem() {
@@ -912,25 +1037,50 @@ function renderBlindList() {
       const solved = state.game.solvedBlind.includes(item.id);
       const inDeck = state.game.dailyDeck.includes(item.id);
       const primaryUrl = item.premium && state.settings.preferAltLinks ? item.alt : item.link;
-      return `<article class="item quest-card ${inTracker ? "is-tracked" : ""} ${solved ? "is-solved" : ""} ${item.difficulty === "Hard" ? "foil-hard" : ""} cat-${normalize(item.category).replaceAll("_", "-")}" data-card-id="${item.id}" draggable="true">
-        <div class="card-topline">
-          <span class="card-type">${escapeHtml(item.category)}</span>
-          <span class="card-rank">#${String(idx + 1).padStart(2, "0")}</span>
-        </div>
-        <div class="item-head">
-          <strong><a href="${primaryUrl}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a></strong>
-          <div>
-            <span class="difficulty ${item.difficulty.toLowerCase()}">${item.difficulty}</span>
-            ${item.premium ? '<span class="premium-pill">Premium</span>' : ""}
+      const hp = getCardHp(item.difficulty);
+      const energy = getCategoryEnergy(item.category);
+      return `<article class="item quest-card pokemon-card ${inTracker ? "is-tracked" : ""} ${solved ? "is-solved" : ""} ${item.difficulty === "Hard" ? "foil-hard" : ""} cat-${normalize(item.category).replaceAll("_", "-")}" data-card-id="${item.id}" draggable="true">
+        <div class="pokemon-card-inner">
+          <div class="pokemon-face pokemon-front">
+            <div class="card-topline pokemon-top">
+              <span class="card-type">${escapeHtml(item.category)}</span>
+              <span class="card-rank">#${String(idx + 1).padStart(2, "0")}</span>
+            </div>
+            <div class="pokemon-name-row">
+              <strong><a href="${primaryUrl}" target="_blank" rel="noreferrer">${escapeHtml(item.title)}</a></strong>
+              <span class="pokemon-hp">HP ${hp}</span>
+            </div>
+            <div class="pokemon-art" data-flip-card="${item.id}">
+              <div class="pokemon-art-glow"></div>
+              <div class="pokemon-energy">${energy}</div>
+            </div>
+            <div class="pokemon-moves">
+              <div><span>Recall</span><b>${item.difficulty} Focus</b></div>
+              <div><span>Combo</span><b>${inDeck ? "Deck Linked" : "Solo Queue"}</b></div>
+            </div>
+            <div class="meta">${solved ? "Captured" : inTracker ? "In your tracker" : "Wild card"}${item.premium ? " | Premium" : ""}</div>
+            <div class="item-actions">
+              <button data-add-blind="${item.id}" ${inTracker ? "disabled" : ""}>${inTracker ? "In tracker" : "Add to tracker"}</button>
+              <button data-deck-add="${item.id}" ${inDeck ? "disabled" : ""}>${inDeck ? "In daily deck" : "Add to daily deck"}</button>
+              <button data-solve-blind="${item.id}" ${solved ? "disabled" : ""}>${solved ? "Solved" : "Mark solved +20XP"}</button>
+              <button data-flip-card="${item.id}">Flip</button>
+            </div>
           </div>
-        </div>
-        <div class="meta">${solved ? "Captured" : inTracker ? "In your deck" : "Uncaptured"}</div>
-        <div class="item-actions">
-          <button data-add-blind="${item.id}" ${inTracker ? "disabled" : ""}>${inTracker ? "In tracker" : "Add to tracker"}</button>
-          <button data-deck-add="${item.id}" ${inDeck ? "disabled" : ""}>${inDeck ? "In daily deck" : "Add to daily deck"}</button>
-          <button data-solve-blind="${item.id}" ${solved ? "disabled" : ""}>${solved ? "Solved" : "Mark solved +20XP"}</button>
-          <a href="${item.link}" target="_blank" rel="noreferrer">LeetCode</a>
-          <a href="${item.alt}" target="_blank" rel="noreferrer">Alt</a>
+          <div class="pokemon-face pokemon-back">
+            <div>
+              <div class="card-topline pokemon-top">
+                <span class="card-type">${escapeHtml(item.category)} Notes</span>
+                <span class="card-rank">${item.difficulty}</span>
+              </div>
+              <p>Tip: explain approach out loud and track one edge case before coding.</p>
+              <p class="flip-hint">This side is your quick strategy card.</p>
+            </div>
+            <div class="item-actions">
+              <a href="${item.link}" target="_blank" rel="noreferrer">LeetCode</a>
+              <a href="${item.alt}" target="_blank" rel="noreferrer">Alt</a>
+              <button data-flip-card="${item.id}">Flip Back</button>
+            </div>
+          </div>
         </div>
       </article>`;
     })
@@ -1010,6 +1160,30 @@ function escapeHtml(text) {
 function formatDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "-" : date.toLocaleDateString();
+}
+
+function getCardHp(difficulty) {
+  if (difficulty === "Hard") return 150;
+  if (difficulty === "Medium") return 110;
+  return 80;
+}
+
+function getCategoryEnergy(category) {
+  const key = normalize(category);
+  const map = {
+    array: "A",
+    dynamic_programming: "D",
+    graph: "G",
+    tree: "T",
+    string: "S",
+    linked_list: "L",
+    bit_manipulation: "B",
+    matrix: "M",
+    interval: "I",
+    heap: "H",
+    backtracking: "R",
+  };
+  return map[key] || "Q";
 }
 
 function clampNumber(raw, min, max, fallback) {
