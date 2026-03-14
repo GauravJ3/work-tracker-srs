@@ -1258,6 +1258,10 @@ label {
   letter-spacing: -0.04em;
 }
 
+.stack-list > .button {
+  width: 100%;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1274,6 +1278,15 @@ label {
   .two-column,
   .world-intro {
     grid-template-columns: 1fr;
+  }
+
+  .hero-card-preview {
+    max-width: 420px;
+  }
+
+  .panel-media {
+    width: 64px;
+    height: 52px;
   }
 }
 
@@ -1292,15 +1305,99 @@ label {
   .session-actions {
     grid-template-columns: 1fr 1fr;
   }
+
+  .top-shell {
+    gap: 1.1rem;
+  }
+
+  .brand-block h1 {
+    max-width: 14ch;
+  }
+
+  .brand-copy {
+    max-width: 100%;
+  }
+
+  .hero-actions {
+    width: 100%;
+  }
+
+  .hero-actions .button {
+    flex: 1 1 220px;
+  }
+
+  .hero-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-card-preview {
+    max-width: none;
+  }
+
+  .metrics-strip {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric-badge {
+    min-width: 0;
+  }
+
+  .active-deck-chip {
+    width: 100%;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .active-deck-chip span:last-child {
+    grid-column: 1 / -1;
+    padding-left: 2.5rem;
+  }
+
+  .view-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.3rem;
+    scrollbar-width: none;
+  }
+
+  .view-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .view-chip {
+    flex: 0 0 auto;
+  }
+
+  .quick-add > * {
+    flex: 1 1 100%;
+  }
+
+  .card-row {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .list-row {
+    grid-template-columns: 1fr;
+  }
+
+  .list-row .button {
+    width: 100%;
+  }
+
+  .session-shell {
+    width: min(720px, 100%);
+  }
 }
 
 @media (max-width: 620px) {
   .app-shell {
-    width: min(100% - 18px, 100%);
+    width: min(100% - 16px, 100%);
+    padding: 16px 0 44px;
   }
 
   .brand-block h1 {
-    font-size: 2.4rem;
+    font-size: 2.2rem;
+    max-width: 11ch;
   }
 
   .hero-panel,
@@ -1314,5 +1411,226 @@ label {
   .card-row,
   .theme-picker {
     grid-template-columns: 1fr;
+  }
+
+  .button,
+  .subview-chip {
+    width: 100%;
+  }
+
+  .hero-actions {
+    flex-direction: column;
+  }
+
+  .hero-actions .button {
+    width: 100%;
+    flex: 1 1 auto;
+  }
+
+  .panel-media {
+    width: 56px;
+    height: 48px;
+    border-radius: 14px;
+  }
+
+  .section-chip {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .panel-side {
+    width: 100%;
+  }
+
+  .metrics-strip {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.7rem;
+  }
+
+  .world-story {
+    padding: 0.95rem;
+  }
+
+  .portal-card {
+    padding: 0.95rem;
+  }
+
+  .portal-card strong {
+    font-size: 1.04rem;
+  }
+
+  .trainer-card {
+    min-height: 0;
+    padding: 0.8rem;
+  }
+
+  .trainer-card-deck,
+  .trainer-card-session {
+    min-height: 0;
+  }
+
+  .trainer-art {
+    height: 104px;
+  }
+
+  .trainer-card-deck .trainer-art,
+  .trainer-card-session .trainer-art {
+    height: 118px;
+  }
+
+  .trainer-name-row {
+    align-items: flex-start;
+  }
+
+  .trainer-name-row strong {
+    flex-wrap: wrap;
+  }
+
+  .trainer-hp {
+    font-size: 0.72rem;
+  }
+
+  .trainer-info div {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.18rem;
+  }
+
+  .trainer-info b {
+    max-width: 100%;
+    text-align: left;
+  }
+
+  .trainer-footer,
+  .card-actions {
+    width: 100%;
+  }
+
+  .trainer-card .button {
+    width: 100%;
+  }
+
+  .builder-form,
+  .stack-list {
+    gap: 0.7rem;
+  }
+
+  input,
+  select,
+  textarea {
+    min-height: 2.9rem;
+    padding: 0.86rem 0.95rem;
+  }
+
+  .toggle-line {
+    align-items: flex-start;
+  }
+
+  .session-overlay {
+    padding: 10px;
+  }
+
+  .session-shell {
+    border-radius: 24px;
+    padding: 1rem;
+  }
+
+  .session-topbar .button {
+    width: 100%;
+  }
+
+  .session-card-frame .trainer-card {
+    width: 100%;
+  }
+
+  .session-answer {
+    min-height: 5.9rem;
+    padding: 0.9rem;
+  }
+
+  .session-answer strong {
+    font-size: 1.06rem;
+  }
+}
+
+@media (max-width: 460px) {
+  .app-shell {
+    width: min(100% - 12px, 100%);
+    padding-top: 12px;
+  }
+
+  .eyebrow {
+    font-size: 0.72rem;
+  }
+
+  .brand-block h1 {
+    font-size: 1.96rem;
+  }
+
+  .brand-copy,
+  .panel-head p,
+  .world-line {
+    font-size: 0.92rem;
+  }
+
+  .hero-focus-copy strong {
+    font-size: 1.7rem;
+  }
+
+  .panel,
+  .hero-panel,
+  .session-shell {
+    padding: 0.9rem;
+    border-radius: 22px;
+  }
+
+  .panel-title-row {
+    gap: 0.55rem;
+  }
+
+  .panel-icon {
+    width: 1.8rem;
+    height: 1.8rem;
+  }
+
+  .panel-media {
+    width: 50px;
+    height: 42px;
+  }
+
+  .metrics-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-badge {
+    padding: 0.8rem 0.9rem;
+  }
+
+  .subview-switch {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .active-deck-chip {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .active-deck-chip span:last-child {
+    padding-left: 0;
+  }
+
+  .trainer-art,
+  .trainer-card-deck .trainer-art,
+  .trainer-card-session .trainer-art {
+    height: 108px;
+  }
+
+  .session-actions {
+    grid-template-columns: 1fr;
+    gap: 0.7rem;
+  }
+
+  .progress-caption {
+    font-size: 0.82rem;
   }
 }
