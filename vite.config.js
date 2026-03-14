@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react()],
-  base: process.env.GITHUB_ACTIONS ? "/work-tracker-srs/" : "/",
-});
+  base: command === "build" ? "/work-tracker-srs/" : "/",
+}));
