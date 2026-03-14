@@ -13,6 +13,7 @@ import { blindItems } from "./data/blind75";
 import { createManualItem, mergeImportedItems, parseCsv, rowsToItems } from "./lib/importers";
 import { fetchSheetRows } from "./lib/sheets";
 import { applySrsReview, createDefaultSrs, isDue } from "./lib/srs";
+import { createStarterContent } from "./lib/starters";
 import { defaultState, loadState, saveState } from "./lib/storage";
 import { clampNumber, createId, dayKey, normalize } from "./lib/utils";
 
@@ -36,6 +37,7 @@ function App() {
   const [ritualHint, setRitualHint] = useState("Start with one deck and let the rest of the workspace stay quiet.");
   const [itemForm, setItemForm] = useState({ title: "", category: "" });
   const [deckForm, setDeckForm] = useState({ name: "", description: "" });
+  const [deckCardForm, setDeckCardForm] = useState({ title: "", category: "", notes: "" });
   const [filters, setFilters] = useState({
     search: "",
     category: "All categories",
@@ -236,6 +238,7 @@ function App() {
     },
   ];
   const HeroDeckIcon = getDeckIcon(displayDeck?.name);
+  const starterCards = useMemo(() => createStarterContent().items.slice(0, 4), []);
   const nextRecommendedDeck = useMemo(
     () => allDecks.find((deck) => deck.id !== session.deckId && deck.count > 0) || recommendedDeck,
     [allDecks, recommendedDeck, session.deckId],
@@ -510,6 +513,56 @@ function App() {
       ),
     }));
     setStatus("Card added to deck.");
+  }
+
+  function addCardToDeck(event) {
+    event.preventDefault();
+    if (!selectedCustomDeck || !deckCardForm.title.trim()) return;
+    const item = {
+      ...createManualItem(deckCardForm),
+      notes: deckCardForm.notes.trim(),
+    };
+    setState((current) => ({
+      ...current,
+      items: [item, ...current.items],
+      decks: current.decks.map((deck) =>
+        deck.id === selectedCustomDeck.id
+          ? { ...deck, itemIds: [item.id, ...deck.itemIds] }
+          : deck,
+      ),
+    }));
+    setDeckCardForm({ title: "", category: "", notes: "" });
+    setStatus(`Added ${item.title} to ${selectedCustomDeck.name}.`);
+    awardXp(10, "Card added to deck", "mint");
+  }
+
+  function addStarterCardToDeck(card) {
+    if (!selectedCustomDeck) {
+      setStatus("Choose or create a custom deck first.");
+      return;
+    }
+    const starterCopy = {
+      ...card,
+      id: createId("startercopy"),
+      title: card.title,
+      category: card.category,
+      status: "open",
+      source: "starter",
+      notes: card.notes,
+      dueDate: "",
+      srs: createDefaultSrs(),
+    };
+    setState((current) => ({
+      ...current,
+      items: [starterCopy, ...current.items],
+      decks: current.decks.map((deck) =>
+        deck.id === selectedCustomDeck.id
+          ? { ...deck, itemIds: [starterCopy.id, ...deck.itemIds] }
+          : deck,
+      ),
+    }));
+    setStatus(`Added starter card to ${selectedCustomDeck.name}.`);
+    awardXp(6, "Starter card added", "gold");
   }
 
   function removeTrackedItemFromDeck(deckId, itemId) {
@@ -801,6 +854,11 @@ function App() {
               state={state}
               selectedCustomDeck={selectedCustomDeck}
               removeDeck={removeDeck}
+              deckCardForm={deckCardForm}
+              setDeckCardForm={setDeckCardForm}
+              addCardToDeck={addCardToDeck}
+              starterCards={starterCards}
+              addStarterCardToDeck={addStarterCardToDeck}
             />
           ) : null}
 

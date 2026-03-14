@@ -1,4 +1,5 @@
 import { createDefaultSrs } from "./srs";
+import { createStarterContent } from "./starters";
 
 export const STORAGE_KEY = "work-pulse-v3";
 
@@ -31,6 +32,21 @@ export const defaultState = {
   },
 };
 
+function withStarterContent(baseState) {
+  if (baseState.items?.length || baseState.decks?.length) return baseState;
+  const starters = createStarterContent();
+  return {
+    ...baseState,
+    items: starters.items,
+    decks: starters.decks,
+    settings: {
+      ...baseState.settings,
+      activeDeckId: "starter-deck-rhythm",
+      selectedCustomDeckId: "starter-deck-rhythm",
+    },
+  };
+}
+
 function hydrateItem(item) {
   return {
     ...item,
@@ -44,9 +60,9 @@ function hydrateItem(item) {
 export function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultState;
+    if (!raw) return withStarterContent(defaultState);
     const parsed = JSON.parse(raw);
-    return {
+    return withStarterContent({
       ...defaultState,
       ...parsed,
       settings: { ...defaultState.settings, ...(parsed.settings || {}) },
@@ -58,9 +74,9 @@ export function loadState() {
       },
       items: Array.isArray(parsed.items) ? parsed.items.map(hydrateItem) : [],
       reminders: Array.isArray(parsed.reminders) ? parsed.reminders : [],
-    };
+    });
   } catch {
-    return defaultState;
+    return withStarterContent(defaultState);
   }
 }
 

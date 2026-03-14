@@ -1019,6 +1019,48 @@ a {
   gap: 0.8rem;
 }
 
+.starter-pack-head {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.starter-pack-head strong {
+  font-size: 1.02rem;
+  letter-spacing: -0.02em;
+}
+
+.starter-pack-head span {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.starter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  border-radius: 20px;
+  border: 1px solid var(--border-default);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.024));
+}
+
+.starter-row-copy {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.starter-row-copy strong {
+  font-size: 0.98rem;
+  letter-spacing: -0.02em;
+}
+
+.starter-row-copy span {
+  color: var(--text-secondary);
+  line-height: 1.55;
+  font-size: var(--type-body-sm);
+}
+
 input,
 select,
 textarea {
@@ -1442,6 +1484,14 @@ label {
   }
 
   .list-row .button {
+    width: 100%;
+  }
+
+  .starter-row {
+    grid-template-columns: 1fr;
+  }
+
+  .starter-row .button {
     width: 100%;
   }
 

@@ -1,4 +1,4 @@
-import { Archive, FolderPlus } from "lucide-react";
+import { Archive, FolderPlus, PlusSquare, Sparkles } from "lucide-react";
 import Panel from "../layout/Panel";
 import EmptyState from "../shared/EmptyState";
 import { getSectionAsset } from "../shared/worldAssets";
@@ -21,6 +21,11 @@ function DeckGardenScreen({
   state,
   selectedCustomDeck,
   removeDeck,
+  deckCardForm,
+  setDeckCardForm,
+  addCardToDeck,
+  starterCards,
+  addStarterCardToDeck,
 }) {
   const DeckGardenIcon = getScreenIcon("Deck Garden");
   const DeckGardenMedia = getSectionAsset("Deck Garden");
@@ -129,6 +134,74 @@ function DeckGardenScreen({
             ) : (
               <EmptyState text="No custom decks yet. Create one and then start routing cards into it." />
             )}
+          </div>
+        </div>
+      </Panel>
+
+      <Panel
+        title="Card Studio"
+        subtitle="Create a card directly inside the selected deck, or drop in a starter card with one tap."
+        action={
+          <span className="section-chip">
+            {selectedCustomDeck ? selectedCustomDeck.name : "Pick a custom deck first"}
+          </span>
+        }
+      >
+        <div className="two-column">
+          <form className="builder-form" onSubmit={addCardToDeck}>
+            <label>
+              Card title
+              <input
+                placeholder="Example: Review API design notes"
+                value={deckCardForm.title}
+                onChange={(event) => setDeckCardForm((current) => ({ ...current, title: event.target.value }))}
+              />
+            </label>
+            <label>
+              Category
+              <input
+                placeholder="Work, Study, Interview..."
+                value={deckCardForm.category}
+                onChange={(event) => setDeckCardForm((current) => ({ ...current, category: event.target.value }))}
+              />
+            </label>
+            <label>
+              Note
+              <textarea
+                rows="4"
+                placeholder="Why this card matters in the deck"
+                value={deckCardForm.notes}
+                onChange={(event) => setDeckCardForm((current) => ({ ...current, notes: event.target.value }))}
+              />
+            </label>
+            <button className="button button-primary" type="submit" disabled={!selectedCustomDeck}>
+              <PlusSquare size={16} />
+              Add to {selectedCustomDeck?.name || "selected deck"}
+            </button>
+          </form>
+
+          <div className="stack-list">
+            <div className="starter-pack-head">
+              <strong>Starter cards</strong>
+              <span>Use these to fill a deck quickly and shape the ritual before you customize it.</span>
+            </div>
+            {starterCards.map((card) => (
+              <article className="starter-row" key={card.id}>
+                <div className="starter-row-copy">
+                  <strong>{card.title}</strong>
+                  <span>{card.category} • {card.notes}</span>
+                </div>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  disabled={!selectedCustomDeck}
+                  onClick={() => addStarterCardToDeck(card)}
+                >
+                  <Sparkles size={16} />
+                  Add
+                </button>
+              </article>
+            ))}
           </div>
         </div>
       </Panel>
