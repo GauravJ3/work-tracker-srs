@@ -41,6 +41,23 @@ To create a production build:
 npm run build
 ```
 
+To run the automated test suite:
+
+```bash
+npm test
+```
+
+To keep tests running while you work:
+
+```bash
+npm run test:watch
+```
+
+Current coverage includes:
+
+- integration tests for starter onboarding, ritual flow, and deck-to-archive routing
+- unit tests for CSV importing and local-storage hydration
+
 ## Google Sheet setup
 
 To sync directly from the browser:
