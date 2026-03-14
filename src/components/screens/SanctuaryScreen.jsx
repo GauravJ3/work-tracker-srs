@@ -2,6 +2,7 @@ import { Archive, Play } from "lucide-react";
 import Panel from "../layout/Panel";
 import MetricBadge from "../shared/MetricBadge";
 import EmptyState from "../shared/EmptyState";
+import RitualCalendar from "../shared/RitualCalendar";
 import { getSectionAsset } from "../shared/worldAssets";
 import { getDeckIcon, getScreenIcon } from "../shared/worldIcons";
 import TrainerCard from "../cards/TrainerCard";
@@ -136,6 +137,7 @@ function SanctuaryScreen({
           <MetricBadge label="Streak" value={`${state.game.streak}d`} />
           <MetricBadge label="Coins" value={state.game.coins} />
         </div>
+        <RitualCalendar history={state.game.history} streak={state.game.streak} />
       </Panel>
     </div>
   );

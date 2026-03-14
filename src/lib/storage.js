@@ -30,6 +30,7 @@ export const defaultState = {
     dailyDeck: [],
     unlocked: [],
     daily: { date: "", reviews: 0, solves: 0 },
+    history: {},
   },
 };
 
@@ -72,6 +73,10 @@ export function loadState() {
         ...defaultState.game,
         ...(parsed.game || {}),
         daily: { ...defaultState.game.daily, ...(parsed.game?.daily || {}) },
+        history:
+          parsed.game?.history && typeof parsed.game.history === "object" && !Array.isArray(parsed.game.history)
+            ? parsed.game.history
+            : {},
       },
       items: Array.isArray(parsed.items) ? parsed.items.map(hydrateItem) : [],
       reminders: Array.isArray(parsed.reminders) ? parsed.reminders : [],

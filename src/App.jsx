@@ -296,6 +296,34 @@ function App() {
     };
   }
 
+  function recordDailyActivity(current, partial) {
+    const date = current.game.daily.date || dayKey(new Date());
+    const previous = current.game.history?.[date] || {
+      reviews: 0,
+      solves: 0,
+      added: 0,
+      rituals: 0,
+      xp: 0,
+    };
+    return {
+      ...current,
+      game: {
+        ...current.game,
+        history: {
+          ...(current.game.history || {}),
+          [date]: {
+            ...previous,
+            reviews: previous.reviews + (partial.reviews || 0),
+            solves: previous.solves + (partial.solves || 0),
+            added: previous.added + (partial.added || 0),
+            rituals: previous.rituals + (partial.rituals || 0),
+            xp: previous.xp + (partial.xp || 0),
+          },
+        },
+      },
+    };
+  }
+
   function launchSparkles(tone = "mint", amount = 10) {
     const burst = Array.from({ length: amount }, (_, index) => ({
       id: `${tone}-${Date.now()}-${index}`,
@@ -359,7 +387,7 @@ function App() {
 
   function awardXp(amount, reason, flare = "mint") {
     setState((current) => {
-      const next = structuredClone(current);
+      const next = structuredClone(recordDailyActivity(current, { xp: amount }));
       next.game.xp += amount;
       while (next.game.xp >= next.game.level * 120) {
         next.game.level += 1;
@@ -438,14 +466,15 @@ function App() {
         ...current,
         items: [item, ...current.items],
       };
+      const withHistory = recordDailyActivity(next, { added: 1 });
       if (selectedCustomDeck) {
-        next.decks = current.decks.map((deck) =>
+        withHistory.decks = current.decks.map((deck) =>
           deck.id === selectedCustomDeck.id && !deck.itemIds.includes(item.id)
             ? { ...deck, itemIds: [item.id, ...deck.itemIds] }
             : deck,
         );
       }
-      return next;
+      return withHistory;
     });
     setItemForm({ title: "", category: "" });
     awardXp(8, "Quick add", "pink");
@@ -458,7 +487,7 @@ function App() {
         item.id === itemId ? applySrsReview(item, quality) : item,
       );
       return ensureAchievementDraft(
-        ensureDailyState({
+        recordDailyActivity(ensureDailyState({
           ...current,
           items,
           game: {
@@ -469,7 +498,7 @@ function App() {
               reviews: current.game.daily.reviews + 1,
             },
           },
-        }),
+        }), { reviews: 1 }),
       );
     });
     playTone(quality >= 4 ? "resolve" : "soft");
@@ -706,7 +735,7 @@ function App() {
     setState((current) => {
       if (current.game.solvedBlind.includes(itemId)) return current;
       return ensureAchievementDraft(
-        ensureDailyState({
+        recordDailyActivity(ensureDailyState({
           ...current,
           game: {
             ...current.game,
@@ -717,7 +746,7 @@ function App() {
               solves: current.game.daily.solves + 1,
             },
           },
-        }),
+        }), { solves: 1 }),
       );
     });
     playTone("resolve");
@@ -743,6 +772,7 @@ function App() {
     if (candidateDeck.id !== deck?.id) {
       updateSettings({ activeDeckId: candidateDeck.id });
     }
+    setState((current) => recordDailyActivity(current, { rituals: 1 }));
     if (candidateDeck.kind === "custom") {
       setState((current) => ({
         ...current,
