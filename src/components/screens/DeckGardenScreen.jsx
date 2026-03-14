@@ -80,8 +80,12 @@ function DeckGardenScreen({
                     <span className="trainer-hp">{deck.count} cards</span>
                   </div>
                   <div className="trainer-info">
-                    <div><span>Feel</span><b>{deck.description}</b></div>
-                    <div><span>Play</span><b>{deck.copy}</b></div>
+                    <div><span>Mood</span><b>{deck.mood || deck.description}</b></div>
+                    <div><span>Play</span><b>{deck.estimatedMinutes || 2} min ritual</b></div>
+                  </div>
+                  <div className="deck-meta-strip">
+                    <span className={`deck-tone-chip tone-${deck.tone || "sun"}`}>{deck.copy}</span>
+                    {deck.lastPlayedAt ? <span className="deck-meta-note">Recently used</span> : <span className="deck-meta-note">{deck.kind === "system" ? "Smart lane" : "Custom lane"}</span>}
                   </div>
                 </button>
               );
@@ -102,6 +106,19 @@ function DeckGardenScreen({
               value={deckForm.name}
               onChange={(event) => setDeckForm((current) => ({ ...current, name: event.target.value }))}
             />
+            <label>
+              Ritual mood
+              <select
+                value={deckForm.tone}
+                onChange={(event) => setDeckForm((current) => ({ ...current, tone: event.target.value }))}
+              >
+                {ritualThemes.map((theme) => (
+                  <option key={theme.id} value={theme.id}>
+                    {theme.name}
+                  </option>
+                ))}
+              </select>
+            </label>
             <textarea
               rows="4"
               placeholder="What is this deck for?"

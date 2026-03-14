@@ -32,11 +32,15 @@ function ArchiveScreen({
     <div className="screen-grid">
       <Panel
         title="Archive"
-        subtitle="Browse, refine, and route cards into the right deck."
+        subtitle="A calmer binder for browsing, refining, and routing cards into the right deck."
         icon={ArchiveIcon}
         media={ArchiveMedia}
         action={<span className="section-chip">{state.items.length} cards</span>}
       >
+        <div className="binder-banner">
+          <strong>Binder view</strong>
+          <span>Keep this area for curation. Build the deck in Deck Garden when you want a more guided flow.</span>
+        </div>
         {selectedCustomDeck ? (
           <div className="active-deck-chip active-deck-chip-quiet">
             <span className="panel-icon panel-icon-inline" aria-hidden="true">
@@ -73,7 +77,7 @@ function ArchiveScreen({
                 Add card
               </button>
             </form>
-            <div className="card-row">
+            <div className="card-row binder-grid">
               {state.items.slice(0, 16).map((item) => {
                 const done = /done|complete/i.test(item.status);
                 const inDeck = selectedCustomDeck?.itemIds.includes(item.id);
@@ -151,7 +155,7 @@ function ArchiveScreen({
                 ))}
               </select>
             </div>
-            <div className="card-row">
+            <div className="card-row binder-grid">
               {filteredBlind.slice(0, 10).map((item) => {
                 const tracked = state.items.some((entry) => entry.blindId === item.id);
                 const solved = state.game.solvedBlind.includes(item.id);

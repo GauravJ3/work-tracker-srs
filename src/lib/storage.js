@@ -15,6 +15,7 @@ export const defaultState = {
     themeMode: "night",
     ritualTone: "ember",
     soundEnabled: true,
+    soundPack: "studio",
     activeDeckId: "system:today",
     selectedCustomDeckId: "",
   },

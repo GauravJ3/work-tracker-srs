@@ -18,10 +18,16 @@ import { defaultState, loadState, saveState } from "./lib/storage";
 import { clampNumber, createId, dayKey, normalize } from "./lib/utils";
 
 const ritualThemes = [
-  { id: "sun", name: "Sun Deck", accent: "gold", copy: "Warm, decisive, and excellent for your daily ritual." },
-  { id: "wave", name: "Wave Deck", accent: "blue", copy: "Cool, breathable, and ideal for longer study loops." },
+  { id: "sun", name: "Sun Deck", accent: "gold", copy: "Warm, decisive, and ideal for strong daily starts." },
+  { id: "wave", name: "Wave Deck", accent: "blue", copy: "Cool, breathable, and suited to longer study loops." },
   { id: "forest", name: "Forest Deck", accent: "mint", copy: "Calm, restorative, and better for recovery passes." },
 ];
+
+const deckMoodCopy = {
+  sun: "Decisive momentum",
+  wave: "Cool study current",
+  forest: "Calm recovery lane",
+};
 
 const views = [
   ["home", "Sanctuary"],
@@ -36,7 +42,7 @@ function App() {
   const [status, setStatus] = useState("Studio ready.");
   const [ritualHint, setRitualHint] = useState("Start with one deck and let the rest of the workspace stay quiet.");
   const [itemForm, setItemForm] = useState({ title: "", category: "" });
-  const [deckForm, setDeckForm] = useState({ name: "", description: "" });
+  const [deckForm, setDeckForm] = useState({ name: "", description: "", tone: "forest" });
   const [deckCardForm, setDeckCardForm] = useState({ title: "", category: "", notes: "" });
   const [filters, setFilters] = useState({
     search: "",
@@ -131,6 +137,8 @@ function App() {
         description: "Your due reviews, sorted for the cleanest starting point.",
         copy: "Start here when you want the app to decide what matters.",
         tone: "sun",
+        mood: deckMoodCopy.sun,
+        estimatedMinutes: Math.max(2, Math.round(dueItems.length * 1.2)),
         itemIds: dueItems.map((item) => item.id),
         count: dueItems.length,
       },
@@ -141,6 +149,8 @@ function App() {
         description: "Late cards and slipping deadlines in one rescue deck.",
         copy: "Best when you want to stabilize the week quickly.",
         tone: "forest",
+        mood: deckMoodCopy.forest,
+        estimatedMinutes: Math.max(2, Math.round(overdueItems.length * 1.2)),
         itemIds: overdueItems.map((item) => item.id),
         count: overdueItems.length,
       },
@@ -151,6 +161,8 @@ function App() {
         description: "Open cards with room for a calm, productive pass.",
         copy: "Good for low-pressure work sessions.",
         tone: "wave",
+        mood: deckMoodCopy.wave,
+        estimatedMinutes: Math.max(2, Math.round(openItems.length * 1.1)),
         itemIds: openItems.map((item) => item.id),
         count: openItems.length,
       },
@@ -161,6 +173,8 @@ function App() {
         description: "Tracked coding prompts gathered into one training deck.",
         copy: "Useful for interview prep and spaced coding review.",
         tone: "wave",
+        mood: "Interview preparation",
+        estimatedMinutes: Math.max(2, Math.round(trackedBlindItems.length * 1.3)),
         itemIds: trackedBlindItems.map((item) => item.id),
         count: trackedBlindItems.length,
       },
@@ -304,12 +318,25 @@ function App() {
     if (!state.settings.soundEnabled) return;
     const ctx = ensureAudio();
     if (!ctx) return;
+    const pack = state.settings.soundPack || "studio";
     const presets = {
-      soft: [392, 523],
-      pulse: [392, 587, 659],
-      resolve: [523, 659, 784],
+      studio: {
+        soft: [392, 523],
+        pulse: [392, 587, 659],
+        resolve: [523, 659, 784],
+      },
+      tape: {
+        soft: [329.63, 392],
+        pulse: [329.63, 440, 523],
+        resolve: [392, 523, 659],
+      },
+      glass: {
+        soft: [523, 659],
+        pulse: [587, 698, 880],
+        resolve: [659, 880, 987],
+      },
     };
-    const notes = presets[kind] || presets.soft;
+    const notes = presets[pack]?.[kind] || presets.studio[kind] || presets.studio.soft;
     notes.forEach((frequency, index) => {
       const oscillator = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -465,8 +492,10 @@ function App() {
       name: deckForm.name.trim(),
       description: deckForm.description.trim() || "A custom trainer deck.",
       itemIds: [],
-      tone: theme.id,
+      tone: deckForm.tone || theme.id,
+      mood: deckMoodCopy[deckForm.tone || theme.id] || "Personal ritual lane",
       createdAt: new Date().toISOString(),
+      lastPlayedAt: "",
     };
     setState((current) => ({
       ...current,
@@ -477,7 +506,7 @@ function App() {
         activeDeckId: deck.id,
       },
     }));
-    setDeckForm({ name: "", description: "" });
+    setDeckForm({ name: "", description: "", tone: deck.tone });
     setStatus(`Created ${deck.name}.`);
     launchSparkles(theme.accent, 14);
   }
@@ -649,6 +678,14 @@ function App() {
     });
     if (candidateDeck.id !== deck?.id) {
       updateSettings({ activeDeckId: candidateDeck.id });
+    }
+    if (candidateDeck.kind === "custom") {
+      setState((current) => ({
+        ...current,
+        decks: current.decks.map((entry) =>
+          entry.id === candidateDeck.id ? { ...entry, lastPlayedAt: new Date().toISOString() } : entry,
+        ),
+      }));
     }
     setRitualHint(`Entering ${candidateDeck.name}. ${candidateDeck.copy}`);
     playTone("pulse");
@@ -922,6 +959,8 @@ function hydrateCustomDeck(deck, items) {
     ...deck,
     kind: "custom",
     copy: deck.description || "A custom trainer deck.",
+    mood: deck.mood || deckMoodCopy[deck.tone] || "Personal ritual lane",
+    estimatedMinutes: Math.max(2, Math.round(count * 1.15)),
     count,
   };
 }

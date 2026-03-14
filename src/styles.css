@@ -73,6 +73,8 @@
   --space-6: 24px;
   --space-7: 32px;
   --space-8: 40px;
+  --motion-fast: 160ms ease;
+  --motion-base: 220ms ease;
 }
 
 :root[data-theme="dawn"] {
@@ -282,7 +284,7 @@ a {
   font-weight: 800;
   letter-spacing: -0.01em;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease, color 160ms ease;
+  transition: transform var(--motion-fast), border-color var(--motion-fast), box-shadow var(--motion-fast), background var(--motion-fast), color var(--motion-fast);
 }
 
 .button:hover,
@@ -448,7 +450,7 @@ a {
 
 .workspace {
   margin-top: 1rem;
-  animation: fadeStage 220ms ease;
+  animation: fadeStage var(--motion-base);
 }
 
 @keyframes fadeStage {
@@ -1061,6 +1063,100 @@ a {
   font-size: var(--type-body-sm);
 }
 
+.deck-meta-strip {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.deck-tone-chip,
+.deck-meta-note {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.42rem 0.72rem;
+  font-size: var(--type-label);
+}
+
+.deck-tone-chip {
+  border: 1px solid rgba(64, 48, 16, 0.16);
+  background: rgba(255, 251, 242, 0.82);
+  color: var(--card-meta-dark);
+}
+
+.deck-meta-note {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-default);
+}
+
+.tone-sun {
+  box-shadow: inset 0 1px 0 rgba(226, 184, 91, 0.18);
+}
+
+.tone-wave {
+  box-shadow: inset 0 1px 0 rgba(111, 167, 255, 0.18);
+}
+
+.tone-forest {
+  box-shadow: inset 0 1px 0 rgba(99, 215, 176, 0.18);
+}
+
+.binder-banner {
+  display: grid;
+  gap: 0.32rem;
+  padding: 0.95rem 1rem;
+  border-radius: 22px;
+  border: 1px solid var(--border-default);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.018));
+  margin-bottom: 1rem;
+}
+
+.binder-banner strong {
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.binder-banner span {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  font-size: var(--type-body-sm);
+}
+
+.binder-grid .trainer-card,
+.binder-grid .trainer-card-blind {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.08)),
+    linear-gradient(180deg, #f2dfaa 0%, #f8f0d7 11%, #fff9ef 11.1%, #fffdfa 100%);
+}
+
+.quiet-card {
+  border-radius: 22px;
+  border: 1px solid var(--border-default);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.042), rgba(255, 255, 255, 0.018));
+  padding: 1rem;
+}
+
+.settings-head {
+  display: grid;
+  gap: 0.3rem;
+  margin-bottom: 0.1rem;
+}
+
+.settings-head strong {
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.settings-head span {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  font-size: var(--type-body-sm);
+}
+
 input,
 select,
 textarea {
@@ -1193,7 +1289,7 @@ label {
     radial-gradient(circle at top right, rgba(99, 215, 176, 0.08), transparent 20%);
   box-shadow: 0 40px 100px rgba(0, 0, 0, 0.44);
   padding: 1.4rem;
-  transition: transform 220ms ease, opacity 220ms ease;
+  transition: transform var(--motion-base), opacity var(--motion-base);
 }
 
 :root[data-theme="dawn"] .session-shell {
@@ -1286,6 +1382,7 @@ label {
   padding: 1rem 1rem 1.05rem;
   cursor: pointer;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: transform var(--motion-fast), border-color var(--motion-fast), box-shadow var(--motion-fast), background var(--motion-fast);
 }
 
 .session-answer span {
@@ -1495,6 +1592,10 @@ label {
     width: 100%;
   }
 
+  .observatory-grid {
+    grid-template-columns: 1fr;
+  }
+
   .session-shell {
     width: min(720px, 100%);
   }
@@ -1623,6 +1724,11 @@ label {
 
   .trainer-card .button {
     width: 100%;
+  }
+
+  .deck-meta-strip {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .builder-form,
