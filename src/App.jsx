@@ -43,7 +43,7 @@ function App() {
   const [ritualHint, setRitualHint] = useState("Start with one deck and let the rest of the workspace stay quiet.");
   const [itemForm, setItemForm] = useState({ title: "", category: "" });
   const [deckForm, setDeckForm] = useState({ name: "", description: "", tone: "forest" });
-  const [deckCardForm, setDeckCardForm] = useState({ title: "", category: "", notes: "" });
+  const [deckCardForm, setDeckCardForm] = useState({ id: "", title: "", category: "", notes: "" });
   const [filters, setFilters] = useState({
     search: "",
     category: "All categories",
@@ -196,6 +196,10 @@ function App() {
   const activeDeckItems = useMemo(() => resolveDeckItems(displayDeck, state.items), [displayDeck, state.items]);
   const selectedCustomDeck =
     customDecks.find((deck) => deck.id === state.settings.selectedCustomDeckId) || customDecks[0] || null;
+  const selectedCustomDeckItems = useMemo(
+    () => resolveDeckItems(selectedCustomDeck, state.items),
+    [selectedCustomDeck, state.items],
+  );
   const solvedCount = state.game.solvedBlind.length;
   const focusScore = Math.min(
     99,
@@ -547,22 +551,41 @@ function App() {
   function addCardToDeck(event) {
     event.preventDefault();
     if (!selectedCustomDeck || !deckCardForm.title.trim()) return;
-    const item = {
-      ...createManualItem(deckCardForm),
-      notes: deckCardForm.notes.trim(),
-    };
-    setState((current) => ({
-      ...current,
-      items: [item, ...current.items],
-      decks: current.decks.map((deck) =>
-        deck.id === selectedCustomDeck.id
-          ? { ...deck, itemIds: [item.id, ...deck.itemIds] }
-          : deck,
-      ),
-    }));
-    setDeckCardForm({ title: "", category: "", notes: "" });
-    setStatus(`Added ${item.title} to ${selectedCustomDeck.name}.`);
-    awardXp(10, "Card added to deck", "mint");
+    const isEditing = Boolean(deckCardForm.id);
+    if (isEditing) {
+      setState((current) => ({
+        ...current,
+        items: current.items.map((item) =>
+          item.id === deckCardForm.id
+            ? {
+                ...item,
+                title: deckCardForm.title.trim(),
+                category: deckCardForm.category.trim() || "General",
+                notes: deckCardForm.notes.trim(),
+              }
+            : item,
+        ),
+      }));
+      setStatus(`Updated ${deckCardForm.title.trim()}.`);
+      awardXp(6, "Card updated", "blue");
+    } else {
+      const item = {
+        ...createManualItem(deckCardForm),
+        notes: deckCardForm.notes.trim(),
+      };
+      setState((current) => ({
+        ...current,
+        items: [item, ...current.items],
+        decks: current.decks.map((deck) =>
+          deck.id === selectedCustomDeck.id
+            ? { ...deck, itemIds: [item.id, ...deck.itemIds] }
+            : deck,
+        ),
+      }));
+      setStatus(`Added ${item.title} to ${selectedCustomDeck.name}.`);
+      awardXp(10, "Card added to deck", "mint");
+    }
+    setDeckCardForm({ id: "", title: "", category: "", notes: "" });
   }
 
   function addStarterCardToDeck(card) {
@@ -592,6 +615,47 @@ function App() {
     }));
     setStatus(`Added starter card to ${selectedCustomDeck.name}.`);
     awardXp(6, "Starter card added", "gold");
+  }
+
+  function beginEditDeckCard(item) {
+    setDeckCardForm({
+      id: item.id,
+      title: item.title,
+      category: item.category || "",
+      notes: item.notes || "",
+    });
+    setStatus(`Editing ${item.title}.`);
+  }
+
+  function removeCardFromSelectedDeck(itemId) {
+    if (!selectedCustomDeck) return;
+    setState((current) => ({
+      ...current,
+      decks: current.decks.map((deck) =>
+        deck.id === selectedCustomDeck.id
+          ? { ...deck, itemIds: deck.itemIds.filter((entry) => entry !== itemId) }
+          : deck,
+      ),
+    }));
+    if (deckCardForm.id === itemId) {
+      setDeckCardForm({ id: "", title: "", category: "", notes: "" });
+    }
+    setStatus("Card removed from selected deck.");
+  }
+
+  function deleteDeckCard(itemId) {
+    setState((current) => ({
+      ...current,
+      items: current.items.filter((item) => item.id !== itemId),
+      decks: current.decks.map((deck) => ({
+        ...deck,
+        itemIds: deck.itemIds.filter((entry) => entry !== itemId),
+      })),
+    }));
+    if (deckCardForm.id === itemId) {
+      setDeckCardForm({ id: "", title: "", category: "", notes: "" });
+    }
+    setStatus("Card deleted.");
   }
 
   function removeTrackedItemFromDeck(deckId, itemId) {
@@ -894,6 +958,10 @@ function App() {
               deckCardForm={deckCardForm}
               setDeckCardForm={setDeckCardForm}
               addCardToDeck={addCardToDeck}
+              selectedCustomDeckItems={selectedCustomDeckItems}
+              beginEditDeckCard={beginEditDeckCard}
+              removeCardFromSelectedDeck={removeCardFromSelectedDeck}
+              deleteDeckCard={deleteDeckCard}
               starterCards={starterCards}
               addStarterCardToDeck={addStarterCardToDeck}
             />

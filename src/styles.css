@@ -1093,6 +1093,40 @@ a {
   border: 1px solid var(--border-default);
 }
 
+.deck-card-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.9rem;
+  align-items: center;
+  padding: 0.95rem 1rem;
+  border-radius: 20px;
+  border: 1px solid var(--border-default);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.048), rgba(255, 255, 255, 0.024));
+}
+
+.deck-card-copy {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.deck-card-copy strong {
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.deck-card-copy span {
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm);
+  line-height: 1.55;
+}
+
+.deck-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: flex-end;
+}
+
 .tone-sun {
   box-shadow: inset 0 1px 0 rgba(226, 184, 91, 0.18);
 }
@@ -1592,6 +1626,14 @@ label {
     width: 100%;
   }
 
+  .deck-card-row {
+    grid-template-columns: 1fr;
+  }
+
+  .deck-card-actions {
+    justify-content: flex-start;
+  }
+
   .observatory-grid {
     grid-template-columns: 1fr;
   }
@@ -1729,6 +1771,10 @@ label {
   .deck-meta-strip {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .deck-card-actions .button {
+    width: 100%;
   }
 
   .builder-form,

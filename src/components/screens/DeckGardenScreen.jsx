@@ -1,4 +1,4 @@
-import { Archive, FolderPlus, PlusSquare, Sparkles } from "lucide-react";
+import { Archive, FolderPlus, PencilLine, PlusSquare, Sparkles, Trash2, Unlink } from "lucide-react";
 import Panel from "../layout/Panel";
 import EmptyState from "../shared/EmptyState";
 import { getSectionAsset } from "../shared/worldAssets";
@@ -24,6 +24,10 @@ function DeckGardenScreen({
   deckCardForm,
   setDeckCardForm,
   addCardToDeck,
+  selectedCustomDeckItems,
+  beginEditDeckCard,
+  removeCardFromSelectedDeck,
+  deleteDeckCard,
   starterCards,
   addStarterCardToDeck,
 }) {
@@ -193,8 +197,17 @@ function DeckGardenScreen({
             </label>
             <button className="button button-primary" type="submit" disabled={!selectedCustomDeck}>
               <PlusSquare size={16} />
-              Add to {selectedCustomDeck?.name || "selected deck"}
+              {deckCardForm.id ? "Save changes" : `Add to ${selectedCustomDeck?.name || "selected deck"}`}
             </button>
+            {deckCardForm.id ? (
+              <button
+                className="button button-ghost"
+                type="button"
+                onClick={() => setDeckCardForm({ id: "", title: "", category: "", notes: "" })}
+              >
+                Clear editor
+              </button>
+            ) : null}
           </form>
 
           <div className="stack-list">
@@ -221,6 +234,45 @@ function DeckGardenScreen({
             ))}
           </div>
         </div>
+      </Panel>
+
+      <Panel
+        title="Deck Cards"
+        subtitle="The selected custom deck should be easy to manage: edit cards, remove them from this deck, or delete them."
+        action={<span className="section-chip">{selectedCustomDeckItems.length} in selected deck</span>}
+      >
+        {selectedCustomDeck ? (
+          <div className="stack-list">
+            {selectedCustomDeckItems.length ? (
+              selectedCustomDeckItems.map((item) => (
+                <article className="deck-card-row" key={item.id}>
+                  <div className="deck-card-copy">
+                    <strong>{item.title}</strong>
+                    <span>{item.category || "General"} • {item.notes || "No note yet."}</span>
+                  </div>
+                  <div className="deck-card-actions">
+                    <button className="button button-ghost is-compact" type="button" onClick={() => beginEditDeckCard(item)}>
+                      <PencilLine size={15} />
+                      Edit
+                    </button>
+                    <button className="button button-ghost is-compact" type="button" onClick={() => removeCardFromSelectedDeck(item.id)}>
+                      <Unlink size={15} />
+                      Remove
+                    </button>
+                    <button className="button button-ghost is-compact" type="button" onClick={() => deleteDeckCard(item.id)}>
+                      <Trash2 size={15} />
+                      Delete
+                    </button>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <EmptyState text="This custom deck is empty. Add a card above or drop in one of the starter cards." />
+            )}
+          </div>
+        ) : (
+          <EmptyState text="Pick or create a custom deck first, then your deck cards will appear here for editing." />
+        )}
       </Panel>
     </div>
   );
