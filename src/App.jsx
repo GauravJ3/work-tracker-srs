@@ -15,31 +15,24 @@ const achievementMap = {
   inbox_zero: "Cleared every due review",
 };
 
-const ritualTones = [
-  {
-    id: "ember",
-    name: "Ember Hall",
-    accent: "gold",
-    copy: "Warm light, decisive pace, finish the queue cleanly.",
-  },
-  {
-    id: "aurora",
-    name: "Aurora Deck",
-    accent: "mint",
-    copy: "Breathy neon focus with softer momentum and smoother transitions.",
-  },
-  {
-    id: "atlas",
-    name: "Atlas Grid",
-    accent: "blue",
-    copy: "Structured, analytical, and built for long study sessions.",
-  },
+const ritualThemes = [
+  { id: "sun", name: "Sun Deck", accent: "gold", copy: "Warm, decisive, and excellent for your daily ritual." },
+  { id: "wave", name: "Wave Deck", accent: "blue", copy: "Cool, breathable, and ideal for longer study loops." },
+  { id: "forest", name: "Forest Deck", accent: "mint", copy: "Calm, restorative, and better for recovery passes." },
+];
+
+const views = [
+  ["home", "Home"],
+  ["decks", "Decks"],
+  ["library", "Library"],
+  ["settings", "Settings"],
 ];
 
 function App() {
   const [state, setState] = useState(() => ensureDailyState(loadState()));
-  const [status, setStatus] = useState("Focus studio is ready.");
-  const [ritualLine, setRitualLine] = useState("Choose a deck and begin a smooth review ritual.");
+  const [view, setView] = useState("home");
+  const [status, setStatus] = useState("Studio ready.");
+  const [ritualHint, setRitualHint] = useState("Start with one deck and let the rest of the workspace stay quiet.");
   const [itemForm, setItemForm] = useState({ title: "", category: "" });
   const [deckForm, setDeckForm] = useState({ name: "", description: "" });
   const [filters, setFilters] = useState({
@@ -47,7 +40,6 @@ function App() {
     category: "All categories",
     difficulty: "All difficulty",
   });
-  const [activeView, setActiveView] = useState("today");
   const [sparkles, setSparkles] = useState([]);
   const [session, setSession] = useState({
     open: false,
@@ -56,7 +48,6 @@ function App() {
     index: 0,
     step: "idle",
     reviewed: [],
-    lastQuality: null,
     startedAt: 0,
   });
   const fileRef = useRef(null);
@@ -92,7 +83,7 @@ function App() {
       const due = state.items.filter(isDue);
       if (!due.length) return;
       const next = due[0];
-      pushReminder(`Ritual ready: ${next.title}`, `${due.length} cards are waiting in your queue.`);
+      pushReminder(`Ready to review ${next.title}`, `${due.length} cards are waiting for you.`);
     }, minutes * 60 * 1000);
     return () => window.clearInterval(timer);
   }, [state.items, state.settings.reminderMinutes, state.settings.notifications]);
@@ -104,17 +95,6 @@ function App() {
         .sort((left, right) => new Date(left.srs.nextReview).getTime() - new Date(right.srs.nextReview).getTime()),
     [state.items],
   );
-
-  const completedCount = useMemo(
-    () => state.items.filter((item) => /done|complete/i.test(item.status)).length,
-    [state.items],
-  );
-
-  const openItems = useMemo(
-    () => state.items.filter((item) => !/done|complete/i.test(item.status)),
-    [state.items],
-  );
-
   const overdueItems = useMemo(
     () =>
       state.items.filter((item) => {
@@ -124,18 +104,94 @@ function App() {
       }),
     [state.items],
   );
-
-  const solvedCount = state.game.solvedBlind.length;
+  const openItems = useMemo(
+    () => state.items.filter((item) => !/done|complete/i.test(item.status)),
+    [state.items],
+  );
+  const completedCount = useMemo(
+    () => state.items.filter((item) => /done|complete/i.test(item.status)).length,
+    [state.items],
+  );
   const trackedBlindItems = useMemo(() => state.items.filter((item) => item.source === "blind75"), [state.items]);
   const customDecks = Array.isArray(state.decks) ? state.decks : [];
-  const selectedDeckId = state.settings.activeDeckId || "system:due";
-  const selectedTone = state.settings.ritualTone || "ember";
+  const activeDeckId = state.settings.activeDeckId || "system:today";
+  const activeThemeId = state.settings.ritualTone || "sun";
+  const currentTheme = ritualThemes.find((theme) => theme.id === activeThemeId) || ritualThemes[0];
+
+  const smartDecks = useMemo(
+    () => [
+      {
+        id: "system:today",
+        kind: "system",
+        name: "Today Ritual",
+        description: "Your due reviews, sorted for the cleanest starting point.",
+        copy: "Start here when you want the app to decide what matters.",
+        tone: "sun",
+        itemIds: dueItems.map((item) => item.id),
+        count: dueItems.length,
+      },
+      {
+        id: "system:recover",
+        kind: "system",
+        name: "Recovery Run",
+        description: "Late cards and slipping deadlines in one rescue deck.",
+        copy: "Best when you want to stabilize the week quickly.",
+        tone: "forest",
+        itemIds: overdueItems.map((item) => item.id),
+        count: overdueItems.length,
+      },
+      {
+        id: "system:flow",
+        kind: "system",
+        name: "Flow Stack",
+        description: "Open cards with room for a calm, productive pass.",
+        copy: "Good for low-pressure work sessions.",
+        tone: "wave",
+        itemIds: openItems.map((item) => item.id),
+        count: openItems.length,
+      },
+      {
+        id: "system:blind",
+        kind: "system",
+        name: "Blind Trainer",
+        description: "Tracked coding prompts gathered into one training deck.",
+        copy: "Useful for interview prep and spaced coding review.",
+        tone: "wave",
+        itemIds: trackedBlindItems.map((item) => item.id),
+        count: trackedBlindItems.length,
+      },
+    ],
+    [dueItems, overdueItems, openItems, trackedBlindItems],
+  );
+
+  const allDecks = useMemo(
+    () => [...smartDecks, ...customDecks.map((deck) => hydrateCustomDeck(deck, state.items))],
+    [smartDecks, customDecks, state.items],
+  );
+  const activeDeck = allDecks.find((deck) => deck.id === activeDeckId) || allDecks[0];
+  const activeDeckItems = useMemo(() => resolveDeckItems(activeDeck, state.items), [activeDeck, state.items]);
+  const selectedCustomDeck =
+    customDecks.find((deck) => deck.id === state.settings.selectedCustomDeckId) || customDecks[0] || null;
+  const solvedCount = state.game.solvedBlind.length;
+  const focusScore = Math.min(
+    99,
+    Math.round(
+      (dueItems.length ? 48 : 78) +
+        Math.min(10, state.game.streak * 2) +
+        Math.min(10, completedCount),
+    ),
+  );
+  const levelFloor = (state.game.level - 1) * 120;
+  const levelGoal = state.game.level * 120;
+  const levelProgress = Math.max(
+    0,
+    Math.min(100, Math.round(((state.game.xp - levelFloor) / (levelGoal - levelFloor)) * 100)),
+  );
 
   const blindCategories = useMemo(
     () => ["All categories", ...new Set(blindItems.map((item) => item.category))],
     [],
   );
-
   const filteredBlind = useMemo(() => {
     const normalizedSearch = normalize(filters.search).replaceAll("_", "");
     return blindItems.filter((item) => {
@@ -149,45 +205,11 @@ function App() {
     });
   }, [filters]);
 
-  const smartDecks = useMemo(
-    () => buildSystemDecks({ dueItems, overdueItems, openItems, trackedBlindItems, state }),
-    [dueItems, overdueItems, openItems, trackedBlindItems, state],
-  );
-
-  const allDecks = useMemo(
-    () => [...smartDecks, ...customDecks.map((deck) => hydrateCustomDeck(deck, state.items))],
-    [smartDecks, customDecks, state.items],
-  );
-
-  const activeDeck = allDecks.find((deck) => deck.id === selectedDeckId) || allDecks[0];
-  const activeDeckItems = useMemo(
-    () => resolveDeckItems(activeDeck, state.items),
-    [activeDeck, state.items],
-  );
-
-  const focusScore = Math.min(
-    98,
-    Math.round(
-      (dueItems.length ? 42 : 72) +
-        Math.min(18, state.game.streak * 2.5) +
-        Math.min(18, (completedCount / Math.max(1, state.items.length)) * 22),
-    ),
-  );
-
-  const levelFloor = (state.game.level - 1) * 120;
-  const levelGoal = state.game.level * 120;
-  const levelProgress = Math.max(
-    0,
-    Math.min(100, Math.round(((state.game.xp - levelFloor) / (levelGoal - levelFloor)) * 100)),
-  );
-
-  const selectedCustomDeck =
-    customDecks.find((deck) => deck.id === state.settings.selectedCustomDeckId) || customDecks[0] || null;
-
   const currentSessionItem = session.open ? session.queue[session.index] || null : null;
   const sessionProgress = session.queue.length
     ? Math.round(((session.index + (session.step === "complete" ? 1 : 0)) / session.queue.length) * 100)
     : 0;
+  const homeCards = activeDeckItems.slice(0, 3);
 
   function updateSettings(partial) {
     setState((current) => ({
@@ -223,7 +245,7 @@ function App() {
     };
   }
 
-  function launchSparkles(tone = "mint", amount = 12) {
+  function launchSparkles(tone = "mint", amount = 10) {
     const burst = Array.from({ length: amount }, (_, index) => ({
       id: `${tone}-${Date.now()}-${index}`,
       left: 12 + Math.random() * 76,
@@ -249,27 +271,25 @@ function App() {
     if (!state.settings.soundEnabled) return;
     const ctx = ensureAudio();
     if (!ctx) return;
-
     const presets = {
       soft: [392, 523],
       pulse: [392, 587, 659],
       resolve: [523, 659, 784],
     };
-
     const notes = presets[kind] || presets.soft;
     notes.forEach((frequency, index) => {
-      const osc = ctx.createOscillator();
+      const oscillator = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = frequency;
-      osc.connect(gain);
+      oscillator.type = "sine";
+      oscillator.frequency.value = frequency;
+      oscillator.connect(gain);
       gain.connect(ctx.destination);
       const start = ctx.currentTime + index * 0.08;
       gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.03, start + 0.03);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.28);
-      osc.start(start);
-      osc.stop(start + 0.3);
+      gain.gain.exponentialRampToValueAtTime(0.026, start + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.26);
+      oscillator.start(start);
+      oscillator.stop(start + 0.28);
     });
   }
 
@@ -300,7 +320,6 @@ function App() {
       setStatus("Notifications are not supported in this browser.");
       return;
     }
-
     const permission = await Notification.requestPermission();
     updateSettings({ notifications: permission === "granted" });
     setStatus(permission === "granted" ? "Notifications enabled." : "Notifications were not granted.");
@@ -311,19 +330,14 @@ function App() {
       setStatus("Paste a Google Sheet URL first.");
       return;
     }
-
     if (!isSilent) setStatus("Syncing from Google Sheets...");
-
     try {
       const rows = await fetchSheetRows(state.settings.sheetUrl);
       const imported = rowsToItems(rows, "sheet");
-      setState((current) => {
-        const merged = mergeImportedItems(current.items, imported);
-        return ensureAchievementDraft({
-          ...current,
-          items: merged,
-        });
-      });
+      setState((current) => ({
+        ...ensureAchievementDraft(current),
+        items: mergeImportedItems(current.items, imported),
+      }));
       awardXp(24, "Sheet sync", "blue");
       setStatus(`Synced ${imported.length} rows successfully.`);
     } catch (error) {
@@ -334,7 +348,6 @@ function App() {
   async function importCsv(event) {
     const [file] = event.target.files || [];
     if (!file) return;
-
     try {
       const text = await file.text();
       const rows = parseCsv(text);
@@ -356,7 +369,6 @@ function App() {
     event.preventDefault();
     if (!itemForm.title.trim()) return;
     const item = createManualItem(itemForm);
-
     setState((current) => {
       const next = {
         ...current,
@@ -371,7 +383,6 @@ function App() {
       }
       return next;
     });
-
     setItemForm({ title: "", category: "" });
     awardXp(8, "Quick add", "pink");
     setStatus(`Added ${item.title}.`);
@@ -382,19 +393,20 @@ function App() {
       const items = current.items.map((item) =>
         item.id === itemId ? applySrsReview(item, quality) : item,
       );
-      const next = ensureDailyState({
-        ...current,
-        items,
-        game: {
-          ...current.game,
-          totalReviews: current.game.totalReviews + 1,
-          daily: {
-            ...current.game.daily,
-            reviews: current.game.daily.reviews + 1,
+      return ensureAchievementDraft(
+        ensureDailyState({
+          ...current,
+          items,
+          game: {
+            ...current.game,
+            totalReviews: current.game.totalReviews + 1,
+            daily: {
+              ...current.game.daily,
+              reviews: current.game.daily.reviews + 1,
+            },
           },
-        },
-      });
-      return ensureAchievementDraft(next);
+        }),
+      );
     });
     playTone(quality >= 4 ? "resolve" : "soft");
     awardXp({ 1: 2, 3: 6, 4: 10, 5: 14 }[quality] || 5, `${reason}: ${qualityLabel(quality)}`, "mint");
@@ -411,6 +423,55 @@ function App() {
     awardXp(12, "Task completed", "gold");
   }
 
+  function createDeck(event) {
+    event.preventDefault();
+    if (!deckForm.name.trim()) return;
+    const theme = ritualThemes[(customDecks.length + 1) % ritualThemes.length];
+    const deck = {
+      id: createId("deck"),
+      name: deckForm.name.trim(),
+      description: deckForm.description.trim() || "A custom trainer deck.",
+      itemIds: [],
+      tone: theme.id,
+      createdAt: new Date().toISOString(),
+    };
+    setState((current) => ({
+      ...current,
+      decks: [deck, ...(current.decks || [])],
+      settings: {
+        ...current.settings,
+        selectedCustomDeckId: deck.id,
+        activeDeckId: deck.id,
+      },
+    }));
+    setDeckForm({ name: "", description: "" });
+    setStatus(`Created ${deck.name}.`);
+    launchSparkles(theme.accent, 14);
+  }
+
+  function removeDeck(deckId) {
+    setState((current) => ({
+      ...current,
+      decks: current.decks.filter((deck) => deck.id !== deckId),
+      settings: {
+        ...current.settings,
+        selectedCustomDeckId:
+          current.settings.selectedCustomDeckId === deckId ? "" : current.settings.selectedCustomDeckId,
+        activeDeckId: current.settings.activeDeckId === deckId ? "system:today" : current.settings.activeDeckId,
+      },
+    }));
+    setStatus("Deck archived.");
+  }
+
+  function selectDeck(deckId) {
+    updateSettings({ activeDeckId: deckId });
+    const deck = allDecks.find((entry) => entry.id === deckId);
+    if (deck?.kind === "custom") {
+      updateSettings({ selectedCustomDeckId: deck.id });
+    }
+    setRitualHint(deck ? deck.copy : "Choose a deck and begin.");
+  }
+
   function addTrackedItemToDeck(deckId, itemId) {
     setState((current) => ({
       ...current,
@@ -420,7 +481,7 @@ function App() {
           : deck,
       ),
     }));
-    setStatus("Card added to custom deck.");
+    setStatus("Card added to deck.");
   }
 
   function removeTrackedItemFromDeck(deckId, itemId) {
@@ -434,60 +495,11 @@ function App() {
     }));
   }
 
-  function createDeck(event) {
-    event.preventDefault();
-    if (!deckForm.name.trim()) return;
-    const tone = ritualTones[(customDecks.length + 1) % ritualTones.length];
-    const deck = {
-      id: createId("deck"),
-      name: deckForm.name.trim(),
-      description: deckForm.description.trim() || "A custom ritual stack.",
-      itemIds: [],
-      tone: tone.id,
-      createdAt: new Date().toISOString(),
-    };
-    setState((current) => ({
-      ...current,
-      decks: [deck, ...(current.decks || [])],
-      settings: {
-        ...current.settings,
-        selectedCustomDeckId: deck.id,
-        activeDeckId: deck.id,
-      },
-    }));
-    setDeckForm({ name: "", description: "" });
-    setStatus(`Created deck "${deck.name}".`);
-    launchSparkles(tone.accent, 14);
-  }
-
-  function removeDeck(deckId) {
-    setState((current) => ({
-      ...current,
-      decks: current.decks.filter((deck) => deck.id !== deckId),
-      settings: {
-        ...current.settings,
-        selectedCustomDeckId:
-          current.settings.selectedCustomDeckId === deckId ? "" : current.settings.selectedCustomDeckId,
-        activeDeckId: current.settings.activeDeckId === deckId ? "system:due" : current.settings.activeDeckId,
-      },
-    }));
-    setStatus("Deck archived.");
-  }
-
-  function selectDeck(deckId) {
-    updateSettings({ activeDeckId: deckId });
-    const deck = allDecks.find((entry) => entry.id === deckId);
-    if (deck?.kind === "custom") {
-      updateSettings({ selectedCustomDeckId: deck.id });
-    }
-    setRitualLine(deck ? deck.copy : "Choose a deck and begin a ritual.");
-  }
-
   function addBlindItem(item, deckId = "") {
     setState((current) => {
-      const existingTracked = current.items.find((entry) => entry.blindId === item.id);
-      const trackedId = existingTracked?.id || createId("blind");
-      const nextItems = existingTracked
+      const existing = current.items.find((entry) => entry.blindId === item.id);
+      const trackedId = existing?.id || createId("blind");
+      const items = existing
         ? current.items
         : [
             {
@@ -504,41 +516,35 @@ function App() {
             },
             ...current.items,
           ];
-
-      const nextDecks = deckId
+      const decks = deckId
         ? current.decks.map((deck) =>
             deck.id === deckId && !deck.itemIds.includes(trackedId)
               ? { ...deck, itemIds: [trackedId, ...deck.itemIds] }
               : deck,
           )
         : current.decks;
-
-      return {
-        ...current,
-        items: nextItems,
-        decks: nextDecks,
-      };
+      return { ...current, items, decks };
     });
-    playTone("soft");
-    awardXp(6, deckId ? "Blind card routed to deck" : "Blind card added", "blue");
+    awardXp(6, deckId ? "Blind card added to deck" : "Blind card tracked", "blue");
   }
 
   function toggleSolved(itemId) {
     setState((current) => {
       if (current.game.solvedBlind.includes(itemId)) return current;
-      const next = ensureDailyState({
-        ...current,
-        game: {
-          ...current.game,
-          solvedBlind: [...current.game.solvedBlind, itemId],
-          coins: current.game.coins + 5,
-          daily: {
-            ...current.game.daily,
-            solves: current.game.daily.solves + 1,
+      return ensureAchievementDraft(
+        ensureDailyState({
+          ...current,
+          game: {
+            ...current.game,
+            solvedBlind: [...current.game.solvedBlind, itemId],
+            coins: current.game.coins + 5,
+            daily: {
+              ...current.game.daily,
+              solves: current.game.daily.solves + 1,
+            },
           },
-        },
-      });
-      return ensureAchievementDraft(next);
+        }),
+      );
     });
     playTone("resolve");
     awardXp(20, "Problem solved", "pink");
@@ -547,10 +553,9 @@ function App() {
   function startSession(deck) {
     const queue = resolveDeckItems(deck, state.items).filter((item) => !/done|complete/i.test(item.status));
     if (!queue.length) {
-      setStatus("This deck is empty right now. Add cards or pick another ritual.");
+      setStatus("This deck is empty right now.");
       return;
     }
-
     setSession({
       open: true,
       deckId: deck.id,
@@ -558,10 +563,9 @@ function App() {
       index: 0,
       step: "live",
       reviewed: [],
-      lastQuality: null,
       startedAt: Date.now(),
     });
-    setRitualLine(`Entering ${deck.name}. ${deck.copy}`);
+    setRitualHint(`Entering ${deck.name}. ${deck.copy}`);
     playTone("pulse");
   }
 
@@ -573,25 +577,21 @@ function App() {
       index: 0,
       step: "idle",
       reviewed: [],
-      lastQuality: null,
       startedAt: 0,
     });
   }
 
   function answerSession(quality) {
-    const currentItem = session.queue[session.index];
-    if (!currentItem) return;
-    reviewItem(currentItem.id, quality, "Ritual");
-
-    const reviewed = [...session.reviewed, { id: currentItem.id, quality }];
+    const item = session.queue[session.index];
+    if (!item) return;
+    reviewItem(item.id, quality, "Ritual");
+    const reviewed = [...session.reviewed, { id: item.id, quality }];
     const hasNext = session.index < session.queue.length - 1;
     setSession((current) => ({
       ...current,
-      step: hasNext ? "transition" : "complete",
       reviewed,
-      lastQuality: quality,
+      step: hasNext ? "transition" : "complete",
     }));
-
     if (hasNext) {
       window.setTimeout(() => {
         setSession((current) => ({
@@ -599,36 +599,26 @@ function App() {
           index: current.index + 1,
           step: "live",
         }));
-      }, 320);
+      }, 260);
     } else {
-      launchSparkles("gold", 20);
+      launchSparkles("gold", 18);
       setStatus("Ritual complete.");
     }
   }
 
-  function rollChallenge() {
-    const pool = [
-      ...dueItems.slice(0, 8).map((item) => `Review "${item.title}" with full attention.`),
-      ...overdueItems.slice(0, 5).map((item) => `Recover "${item.title}" before it slips further.`),
-      ...blindItems
-        .filter((item) => !state.game.solvedBlind.includes(item.id))
-        .slice(0, 12)
-        .map((item) => `Bring "${item.title}" into a custom deck and solve it.`),
+  function inspire() {
+    const suggestions = [
+      `Start with ${activeDeck?.name || "Today Ritual"} for the cleanest pass.`,
+      dueItems.length ? `You have ${dueItems.length} due cards. A short ritual would clear them.` : "Your due queue is calm. This is a good time to build a deck.",
+      selectedCustomDeck ? `Keep curating ${selectedCustomDeck.name} until it feels like your best session deck.` : "Create one custom deck for your highest-stakes work.",
     ];
-    setRitualLine(
-      pool.length
-        ? pool[Math.floor(Math.random() * pool.length)]
-        : "Everything is under control. Curate a fresh custom deck for tomorrow.",
-    );
+    setRitualHint(suggestions[Math.floor(Math.random() * suggestions.length)]);
   }
 
-  const heroTone = ritualTones.find((tone) => tone.id === selectedTone) || ritualTones[0];
-
   return (
-    <div className={`page-shell tone-${heroTone.id}`}>
-      <div className="orb orb-a" />
-      <div className="orb orb-b" />
-      <div className="orb orb-c" />
+    <div className={`page-shell theme-${currentTheme.id}`}>
+      <div className="ambient ambient-a" />
+      <div className="ambient ambient-b" />
       <div className="spark-layer" aria-hidden="true">
         {sparkles.map((piece) => (
           <span
@@ -649,637 +639,460 @@ function App() {
           session={session}
           currentItem={currentSessionItem}
           progress={sessionProgress}
-          onClose={closeSession}
           onAnswer={answerSession}
+          onClose={closeSession}
         />
       ) : null}
 
       <main className="app-shell">
-        <section className="cinema-hero">
-          <div className="cinema-copy">
-            <p className="eyebrow">Premium Focus Trainer</p>
-            <h1>Ritual decks for deep work and cleaner recall.</h1>
-            <p className="hero-text">
-              Build smart decks, create custom rituals, and review inside an immersive trainer that
-              feels smooth, intentional, and calm.
+        <header className="top-shell">
+          <div className="brand-block">
+            <p className="eyebrow">Work Pulse Trainer</p>
+            <h1>Collect decks. Enter ritual. Clear your queue.</h1>
+            <p className="brand-copy">
+              A calmer deck-based workspace inspired by premium focus apps and collectible trainer cards.
             </p>
-            <div className="hero-actions">
-              <button className="button button-primary" onClick={() => startSession(activeDeck)}>
-                Begin ritual
-              </button>
-              <button className="button button-secondary" onClick={rollChallenge}>
-                Inspire me
-              </button>
-            </div>
-            <div className="ritual-strip">
-              <span className="ritual-line">{ritualLine}</span>
-              <span className="status-pill">{status}</span>
-            </div>
           </div>
+          <div className="hero-actions">
+            <button className="button button-primary" type="button" onClick={() => startSession(activeDeck)}>
+              Start {activeDeck?.name || "ritual"}
+            </button>
+            <button className="button button-secondary" type="button" onClick={inspire}>
+              Inspire me
+            </button>
+          </div>
+        </header>
 
-          <div className="cinema-stage">
-            <div className="focus-orbit">
-              <div className="focus-ring ring-one" />
-              <div className="focus-ring ring-two" />
-              <div className="focus-core">
-                <span>Live deck</span>
-                <strong>{activeDeck?.name || "Due ritual"}</strong>
-                <p>{activeDeck?.count || 0} cards loaded</p>
-              </div>
+        <section className="hero-panel">
+          <article className="hero-focus panel">
+            <div className="hero-focus-copy">
+              <span className="hero-label">Recommended ritual</span>
+              <strong>{activeDeck?.name || "Today Ritual"}</strong>
+              <p>{ritualHint}</p>
             </div>
-            <div className="stage-panel glass">
-              <div className="stage-head">
-                <span>Focus score</span>
-                <strong>{focusScore}</strong>
-              </div>
-              <div className="stage-grid">
-                <MetricCell label="Due now" value={dueItems.length} />
-                <MetricCell label="Streak" value={`${state.game.streak}d`} />
-                <MetricCell label="Level" value={state.game.level} />
-                <MetricCell label="Solved" value={`${solvedCount}/75`} />
-              </div>
-              <div className="progress-wrap">
-                <div className="progress-caption">
-                  <span>Level progress</span>
-                  <span>{state.game.xp} XP</span>
-                </div>
-                <div className="progress-track">
-                  <span style={{ width: `${levelProgress}%` }} />
-                </div>
-              </div>
+            <div className="hero-metrics">
+              <MetricBadge label="Focus" value={focusScore} />
+              <MetricBadge label="Due" value={dueItems.length} />
+              <MetricBadge label="Streak" value={`${state.game.streak}d`} />
             </div>
-          </div>
+          </article>
+          <article className="hero-card-preview trainer-card trainer-card-feature">
+            <TrainerCardHeader tag="Active Deck" type={activeDeck?.kind === "custom" ? "Custom" : "Smart"} />
+            <div className={`trainer-art art-${activeDeck?.tone || "sun"}`}>
+              <div className="trainer-sigil">{deckSigil(activeDeck?.name || "TR")}</div>
+            </div>
+            <div className="trainer-name-row">
+              <strong>{activeDeck?.name || "Today Ritual"}</strong>
+              <span className="trainer-hp">{activeDeck?.count || 0} cards</span>
+            </div>
+            <div className="trainer-info">
+              <div><span>Path</span><b>{activeDeck?.description || "Start with the cards due now."}</b></div>
+              <div><span>Mode</span><b>{currentTheme.name}</b></div>
+            </div>
+          </article>
         </section>
 
-        <div className="view-switcher" role="tablist" aria-label="Workspace views">
-          {[
-            ["today", "Today"],
-            ["decks", "Decks"],
-            ["library", "Library"],
-            ["settings", "Settings"],
-          ].map(([id, label]) => (
+        <nav className="view-nav" aria-label="Workspace views">
+          {views.map(([id, label]) => (
             <button
               key={id}
               type="button"
-              role="tab"
-              aria-selected={activeView === id}
-              className={`view-pill ${activeView === id ? "is-active" : ""}`}
-              onClick={() => setActiveView(id)}
+              className={`view-chip ${view === id ? "is-active" : ""}`}
+              onClick={() => setView(id)}
             >
               {label}
             </button>
           ))}
-        </div>
+        </nav>
 
-        <section className="studio-grid staged-grid">
-          <div className="column-main">
-            {activeView === "today" ? (
-              <>
-                <StudioCard
-                  title="Today"
-                  subtitle="One deck, one queue, one clean next step."
-                  action={
-                    <div className="queue-actions">
-                      <span className="section-chip">{activeDeckItems.length} cards</span>
-                      <button className="button button-primary" type="button" onClick={() => startSession(activeDeck)}>
-                        Start session
-                      </button>
-                    </div>
-                  }
-                >
-                  <div className="deck-shelf compact-shelf">
-                    {allDecks.slice(0, 6).map((deck) => (
-                      <button
-                        key={deck.id}
-                        type="button"
-                        className={`deck-card deck-${deck.tone || "ember"} ${selectedDeckId === deck.id ? "is-selected" : ""}`}
-                        onClick={() => selectDeck(deck.id)}
-                      >
-                        <div className="deck-card-head">
-                          <span>{deck.kind === "custom" ? "Custom deck" : "Smart deck"}</span>
-                          <span>{deck.count} cards</span>
-                        </div>
-                        <strong>{deck.name}</strong>
-                        <p>{deck.copy}</p>
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="queue-preview">
-                    {activeDeckItems.length ? (
-                      activeDeckItems.slice(0, 4).map((item, index) => (
-                        <article className="ritual-card reveal-card" key={item.id}>
-                          <div className="ritual-card-head">
-                            <span>Card {String(index + 1).padStart(2, "0")}</span>
-                            <span>{item.category}</span>
-                          </div>
-                          <strong>{item.title}</strong>
-                          <p>
-                            {item.dueDate
-                              ? `${formatRelative(item.dueDate)} deadline`
-                              : `Next review ${formatDate(item.srs.nextReview)}`}
-                          </p>
-                        </article>
-                      ))
-                    ) : (
-                      <EmptyState text="This deck is empty. Switch decks or add cards from the library." />
-                    )}
-                  </div>
-                </StudioCard>
-
-                <StudioCard
-                  title="Momentum"
-                  subtitle="Only the essentials for today."
-                  action={<span className="section-chip">{state.game.unlocked.length} unlocked</span>}
-                >
-                  <div className="momentum-panel">
-                    <div className="momentum-meter">
-                      <span>Level {state.game.level}</span>
-                      <strong>{state.game.xp} XP</strong>
-                      <div className="progress-track">
-                        <span style={{ width: `${levelProgress}%` }} />
-                      </div>
-                    </div>
-                    <div className="momentum-grid">
-                      <MetricCell label="Due" value={dueItems.length} />
-                      <MetricCell label="Streak" value={`${state.game.streak}d`} />
-                      <MetricCell label="Coins" value={state.game.coins} />
-                      <MetricCell label="Solved" value={`${solvedCount}/75`} />
-                    </div>
-                  </div>
-                </StudioCard>
-              </>
-            ) : null}
-
-            {activeView === "decks" ? (
-              <StudioCard
-                title="Deck Atelier"
-                subtitle="Choose a tone, build a custom deck, and keep the rest out of the way."
-                action={<span className="section-chip">{allDecks.length} decks</span>}
+        <section className="workspace">
+          {view === "home" ? (
+            <div className="screen-grid">
+              <Panel
+                title="Today"
+                subtitle="One deck, one next step, no extra noise."
+                action={<span className="section-chip">{homeCards.length} preview cards</span>}
               >
-                <div className="tone-switcher">
-                  {ritualTones.map((tone) => (
+                <div className="card-row">
+                  {homeCards.length ? (
+                    homeCards.map((item, index) => (
+                      <TrainerCard
+                        key={item.id}
+                        item={item}
+                        badge={`#${index + 1}`}
+                        footer={
+                          <button className="button button-ghost" type="button" onClick={() => startSession(activeDeck)}>
+                            Review in session
+                          </button>
+                        }
+                      />
+                    ))
+                  ) : (
+                    <EmptyState text="No cards in this ritual yet. Choose another deck or add cards from Library." />
+                  )}
+                </div>
+              </Panel>
+
+              <Panel
+                title="Momentum"
+                subtitle="Only the stats that help you decide what to do next."
+                action={<span className="section-chip">{state.game.unlocked.length} unlocked</span>}
+              >
+                <div className="metrics-strip">
+                  <MetricBadge label="Level" value={state.game.level} />
+                  <MetricBadge label="XP" value={state.game.xp} />
+                  <MetricBadge label="Coins" value={state.game.coins} />
+                  <MetricBadge label="Solved" value={`${solvedCount}/75`} />
+                </div>
+                <div className="progress-section">
+                  <div className="progress-caption">
+                    <span>Level progress</span>
+                    <span>{levelProgress}%</span>
+                  </div>
+                  <div className="progress-track">
+                    <span style={{ width: `${levelProgress}%` }} />
+                  </div>
+                </div>
+              </Panel>
+            </div>
+          ) : null}
+
+          {view === "decks" ? (
+            <div className="screen-grid">
+              <Panel
+                title="Decks"
+                subtitle="Smart decks help you start fast. Custom decks help you shape the work."
+                action={<span className="section-chip">{allDecks.length} total decks</span>}
+              >
+                <div className="theme-picker">
+                  {ritualThemes.map((theme) => (
                     <button
-                      key={tone.id}
+                      key={theme.id}
                       type="button"
-                      className={`tone-pill ${selectedTone === tone.id ? "is-active" : ""}`}
-                      onClick={() => updateSettings({ ritualTone: tone.id })}
+                      className={`theme-card ${activeThemeId === theme.id ? "is-active" : ""}`}
+                      onClick={() => updateSettings({ ritualTone: theme.id })}
                     >
-                      <strong>{tone.name}</strong>
-                      <span>{tone.copy}</span>
+                      <strong>{theme.name}</strong>
+                      <span>{theme.copy}</span>
                     </button>
                   ))}
                 </div>
-
-                <div className="deck-shelf">
+                <div className="card-row">
                   {allDecks.map((deck) => (
                     <button
                       key={deck.id}
                       type="button"
-                      className={`deck-card deck-${deck.tone || "ember"} ${selectedDeckId === deck.id ? "is-selected" : ""}`}
+                      className={`trainer-card trainer-card-button ${activeDeckId === deck.id ? "is-selected" : ""}`}
                       onClick={() => selectDeck(deck.id)}
                     >
-                      <div className="deck-card-head">
-                        <span>{deck.kind === "custom" ? "Custom deck" : "Smart deck"}</span>
-                        <span>{deck.count} cards</span>
+                      <TrainerCardHeader tag={deck.kind === "custom" ? "Custom Deck" : "Smart Deck"} type={deck.count} />
+                      <div className={`trainer-art art-${deck.tone || "sun"}`}>
+                        <div className="trainer-sigil">{deckSigil(deck.name)}</div>
                       </div>
-                      <strong>{deck.name}</strong>
-                      <p>{deck.description}</p>
-                      <div className="deck-card-foot">
-                        <span>{deck.copy}</span>
+                      <div className="trainer-name-row">
+                        <strong>{deck.name}</strong>
+                        <span className="trainer-hp">{deck.count} cards</span>
+                      </div>
+                      <div className="trainer-info">
+                        <div><span>Feel</span><b>{deck.description}</b></div>
+                        <div><span>Play</span><b>{deck.copy}</b></div>
                       </div>
                     </button>
                   ))}
                 </div>
+              </Panel>
 
-                <div className="atelier-grid">
-                  <form className="deck-builder" onSubmit={createDeck}>
-                    <div className="subhead">
-                      <h3>Create Custom Deck</h3>
-                      <span>{selectedCustomDeck ? `Selected: ${selectedCustomDeck.name}` : "Start a new shelf"}</span>
-                    </div>
+              <Panel
+                title="Create Custom Deck"
+                subtitle="Build a deck for one ritual, one project, or one interview sprint."
+                action={<span className="section-chip">{customDecks.length} custom</span>}
+              >
+                <div className="two-column">
+                  <form className="builder-form" onSubmit={createDeck}>
                     <input
                       placeholder="Deck name"
                       value={deckForm.name}
                       onChange={(event) => setDeckForm((current) => ({ ...current, name: event.target.value }))}
                     />
                     <textarea
-                      rows="3"
-                      placeholder="Short mood or intent for this ritual"
+                      rows="4"
+                      placeholder="What is this deck for?"
                       value={deckForm.description}
-                      onChange={(event) =>
-                        setDeckForm((current) => ({ ...current, description: event.target.value }))
-                      }
+                      onChange={(event) => setDeckForm((current) => ({ ...current, description: event.target.value }))}
                     />
                     <button className="button button-primary" type="submit">
                       Create deck
                     </button>
                   </form>
-
-                  <div className="deck-manager">
-                    <div className="subhead">
-                      <h3>Custom Shelf</h3>
-                      <span>{customDecks.length} saved</span>
-                    </div>
-                    <div className="custom-deck-list">
-                      {customDecks.length ? (
-                        customDecks.map((deck) => {
-                          const hydrated = hydrateCustomDeck(deck, state.items);
-                          const isEditing = selectedCustomDeck?.id === deck.id;
-                          return (
-                            <article className={`custom-deck-row ${isEditing ? "is-editing" : ""}`} key={deck.id}>
-                              <button type="button" className="custom-deck-main" onClick={() => selectDeck(deck.id)}>
-                                <strong>{deck.name}</strong>
-                                <span>{hydrated.count} cards • {deck.description}</span>
-                              </button>
-                              <div className="custom-deck-actions">
-                                <button
-                                  className="button button-ghost"
-                                  type="button"
-                                  onClick={() => updateSettings({ selectedCustomDeckId: deck.id, activeDeckId: deck.id })}
-                                >
-                                  Select
-                                </button>
-                                <button className="button button-ghost" type="button" onClick={() => removeDeck(deck.id)}>
-                                  Archive
-                                </button>
-                              </div>
-                            </article>
-                          );
-                        })
-                      ) : (
-                        <EmptyState text="No custom decks yet. Build one for interview prep, writing, or a daily ritual." />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </StudioCard>
-            ) : null}
-
-            {activeView === "library" ? (
-              <>
-                <StudioCard
-                  title="Tracked Library"
-                  subtitle="Add cards, complete tasks, and route them into your selected custom deck."
-                  action={<span className="section-chip">{state.items.length} tracked cards</span>}
-                >
-                  <div className="quick-add-panel">
-                    <form className="quick-form wide" onSubmit={addManualTask}>
-                      <input
-                        placeholder="Task or topic"
-                        value={itemForm.title}
-                        onChange={(event) => setItemForm((current) => ({ ...current, title: event.target.value }))}
-                      />
-                      <input
-                        placeholder="Category"
-                        value={itemForm.category}
-                        onChange={(event) => setItemForm((current) => ({ ...current, category: event.target.value }))}
-                      />
-                      <button className="button button-primary" type="submit">
-                        Add card
-                      </button>
-                    </form>
-                  </div>
-
-                  <div className="library-grid">
-                    {state.items.length ? (
-                      state.items.slice(0, 18).map((item) => {
-                        const done = /done|complete/i.test(item.status);
-                        const inSelectedDeck = selectedCustomDeck?.itemIds.includes(item.id);
+                  <div className="stack-list">
+                    {customDecks.length ? (
+                      customDecks.map((deck) => {
+                        const hydrated = hydrateCustomDeck(deck, state.items);
+                        const selected = selectedCustomDeck?.id === deck.id;
                         return (
-                          <article className={`library-card reveal-card ${done ? "is-complete" : ""}`} key={item.id}>
-                            <div className="library-card-head">
-                              <span>{item.category}</span>
-                              <span>{item.source}</span>
-                            </div>
-                            <strong>{item.title}</strong>
-                            <p>
-                              {item.dueDate ? formatRelative(item.dueDate) : `Next review ${formatDate(item.srs.nextReview)}`}
-                            </p>
-                            <div className="library-card-actions">
-                              {!done ? (
-                                <button className="button button-ghost" type="button" onClick={() => completeItem(item.id)}>
-                                  Complete
-                                </button>
-                              ) : null}
-                              {selectedCustomDeck ? (
-                                inSelectedDeck ? (
-                                  <button
-                                    className="button button-ghost"
-                                    type="button"
-                                    onClick={() => removeTrackedItemFromDeck(selectedCustomDeck.id, item.id)}
-                                  >
-                                    Remove from deck
-                                  </button>
-                                ) : (
-                                  <button
-                                    className="button button-ghost"
-                                    type="button"
-                                    onClick={() => addTrackedItemToDeck(selectedCustomDeck.id, item.id)}
-                                  >
-                                    Add to deck
-                                  </button>
-                                )
-                              ) : null}
-                            </div>
+                          <article className={`list-row ${selected ? "is-selected" : ""}`} key={deck.id}>
+                            <button type="button" className="list-row-main" onClick={() => selectDeck(deck.id)}>
+                              <strong>{deck.name}</strong>
+                              <span>{hydrated.count} cards • {deck.description}</span>
+                            </button>
+                            <button className="button button-ghost" type="button" onClick={() => removeDeck(deck.id)}>
+                              Archive
+                            </button>
                           </article>
                         );
                       })
                     ) : (
-                      <EmptyState text="No tracked cards yet. Sync a sheet, import CSV, or add a manual card to begin." />
+                      <EmptyState text="No custom decks yet. Create one and then start routing cards into it." />
                     )}
                   </div>
-                </StudioCard>
+                </div>
+              </Panel>
+            </div>
+          ) : null}
 
-                <StudioCard
-                  title="Blind Card Library"
-                  subtitle="Browse a smaller slice of practice cards and send them into your workflow."
-                  action={<span className="section-chip">{filteredBlind.length} visible</span>}
-                >
-                  <div className="filters-column">
-                    <input
-                      placeholder="Search prompts"
-                      value={filters.search}
-                      onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-                    />
-                    <select
-                      value={filters.category}
-                      onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}
-                    >
-                      {blindCategories.map((option) => (
-                        <option key={option}>{option}</option>
-                      ))}
-                    </select>
-                    <select
-                      value={filters.difficulty}
-                      onChange={(event) => setFilters((current) => ({ ...current, difficulty: event.target.value }))}
-                    >
-                      {["All difficulty", "Easy", "Medium", "Hard"].map((option) => (
-                        <option key={option}>{option}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="blind-library">
-                    {filteredBlind.slice(0, 10).map((item) => {
-                      const tracked = state.items.some((entry) => entry.blindId === item.id);
-                      const solved = state.game.solvedBlind.includes(item.id);
-                      const href = item.premium && state.settings.preferAltLinks ? item.alt : item.link;
-                      return (
-                        <article className={`blind-library-card reveal-card ${solved ? "is-solved" : ""}`} key={item.id}>
-                          <div className="blind-card-top">
-                            <span>{item.category}</span>
-                            <span>{item.difficulty}</span>
+          {view === "library" ? (
+            <div className="screen-grid">
+              <Panel
+                title="Tracked Library"
+                subtitle="Everything you are currently training against."
+                action={<span className="section-chip">{state.items.length} cards</span>}
+              >
+                <form className="quick-add" onSubmit={addManualTask}>
+                  <input
+                    placeholder="Task or topic"
+                    value={itemForm.title}
+                    onChange={(event) => setItemForm((current) => ({ ...current, title: event.target.value }))}
+                  />
+                  <input
+                    placeholder="Category"
+                    value={itemForm.category}
+                    onChange={(event) => setItemForm((current) => ({ ...current, category: event.target.value }))}
+                  />
+                  <button className="button button-primary" type="submit">
+                    Add card
+                  </button>
+                </form>
+                <div className="card-row">
+                  {state.items.slice(0, 16).map((item) => {
+                    const done = /done|complete/i.test(item.status);
+                    const inDeck = selectedCustomDeck?.itemIds.includes(item.id);
+                    return (
+                      <TrainerCard
+                        key={item.id}
+                        item={item}
+                        badge={item.source}
+                        footer={
+                          <div className="card-actions">
+                            {!done ? (
+                              <button className="button button-ghost" type="button" onClick={() => completeItem(item.id)}>
+                                Complete
+                              </button>
+                            ) : null}
+                            {selectedCustomDeck ? (
+                              inDeck ? (
+                                <button
+                                  className="button button-ghost"
+                                  type="button"
+                                  onClick={() => removeTrackedItemFromDeck(selectedCustomDeck.id, item.id)}
+                                >
+                                  Remove from deck
+                                </button>
+                              ) : (
+                                <button
+                                  className="button button-ghost"
+                                  type="button"
+                                  onClick={() => addTrackedItemToDeck(selectedCustomDeck.id, item.id)}
+                                >
+                                  Add to {selectedCustomDeck.name}
+                                </button>
+                              )
+                            ) : null}
                           </div>
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              </Panel>
+
+              <Panel
+                title="Blind Card Library"
+                subtitle="Search, track, and route coding cards into your custom decks."
+                action={<span className="section-chip">{filteredBlind.length} matches</span>}
+              >
+                <div className="quick-add quick-add-filters">
+                  <input
+                    placeholder="Search prompts"
+                    value={filters.search}
+                    onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+                  />
+                  <select
+                    value={filters.category}
+                    onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}
+                  >
+                    {blindCategories.map((option) => (
+                      <option key={option}>{option}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={filters.difficulty}
+                    onChange={(event) => setFilters((current) => ({ ...current, difficulty: event.target.value }))}
+                  >
+                    {["All difficulty", "Easy", "Medium", "Hard"].map((option) => (
+                      <option key={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="card-row">
+                  {filteredBlind.slice(0, 10).map((item) => {
+                    const tracked = state.items.some((entry) => entry.blindId === item.id);
+                    const solved = state.game.solvedBlind.includes(item.id);
+                    const href = item.premium && state.settings.preferAltLinks ? item.alt : item.link;
+                    return (
+                      <article className="trainer-card" key={item.id}>
+                        <TrainerCardHeader tag={item.category} type={item.difficulty} />
+                        <div className={`trainer-art art-${difficultyTone(item.difficulty)}`}>
+                          <div className="trainer-sigil">{deckSigil(item.title)}</div>
+                        </div>
+                        <div className="trainer-name-row">
                           <strong>
                             <a href={href} target="_blank" rel="noreferrer">
                               {item.title}
                             </a>
                           </strong>
-                          <p>{solved ? "Solved and logged." : tracked ? "Tracked in your library." : "Ready to route."}</p>
-                          <div className="blind-actions">
-                            <button className="button button-ghost" type="button" onClick={() => addBlindItem(item)}>
-                              {tracked ? "Track again" : "Track card"}
+                          <span className="trainer-hp">{solved ? "Solved" : tracked ? "Tracked" : "Wild"}</span>
+                        </div>
+                        <div className="trainer-info">
+                          <div><span>Status</span><b>{solved ? "Captured in your trainer log." : "Ready to add to your ritual."}</b></div>
+                        </div>
+                        <div className="card-actions">
+                          <button className="button button-ghost" type="button" onClick={() => addBlindItem(item)}>
+                            {tracked ? "Track again" : "Track"}
+                          </button>
+                          {selectedCustomDeck ? (
+                            <button className="button button-ghost" type="button" onClick={() => addBlindItem(item, selectedCustomDeck.id)}>
+                              Add to deck
                             </button>
-                            {selectedCustomDeck ? (
-                              <button className="button button-ghost" type="button" onClick={() => addBlindItem(item, selectedCustomDeck.id)}>
-                                Add to deck
-                              </button>
-                            ) : null}
-                            <button className="button button-primary" type="button" disabled={solved} onClick={() => toggleSolved(item.id)}>
-                              {solved ? "Solved" : "Mark solved"}
-                            </button>
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                </StudioCard>
-              </>
-            ) : null}
-          </div>
-
-          <aside className="column-side">
-            {activeView === "settings" ? (
-              <>
-            <StudioCard
-              title="Control Deck"
-              subtitle="Inputs, sync, reminders, and ambient trainer settings."
-              action={<span className="section-chip">Live setup</span>}
-            >
-              <div className="control-grid">
-                <label>
-                  Google Sheet URL
-                  <input
-                    type="url"
-                    placeholder="Paste a Google Sheet URL"
-                    value={state.settings.sheetUrl}
-                    onChange={(event) => updateSettings({ sheetUrl: event.target.value })}
-                  />
-                </label>
-                <label>
-                  Refresh interval
-                  <input
-                    type="number"
-                    min="5"
-                    max="240"
-                    value={state.settings.refreshMinutes}
-                    onChange={(event) =>
-                      updateSettings({
-                        refreshMinutes: clampNumber(event.target.value, 5, 240, 30),
-                      })
-                    }
-                  />
-                </label>
-                <label>
-                  Reminder cadence
-                  <input
-                    type="number"
-                    min="5"
-                    max="180"
-                    value={state.settings.reminderMinutes}
-                    onChange={(event) =>
-                      updateSettings({
-                        reminderMinutes: clampNumber(event.target.value, 5, 180, 20),
-                      })
-                    }
-                  />
-                </label>
-                <label>
-                  Theme
-                  <select
-                    value={state.settings.themeMode}
-                    onChange={(event) => updateSettings({ themeMode: event.target.value })}
-                  >
-                    <option value="night">Night studio</option>
-                    <option value="dawn">Dawn studio</option>
-                  </select>
-                </label>
-              </div>
-
-              <div className="action-stack">
-                <button className="button button-primary" type="button" onClick={() => syncFromSheet(false)}>
-                  Sync from sheet
-                </button>
-                <button className="button button-secondary" type="button" onClick={() => fileRef.current?.click()}>
-                  Import CSV
-                </button>
-                <button className="button button-ghost" type="button" onClick={enableNotifications}>
-                  Enable notifications
-                </button>
-                <label className="toggle-row">
-                  <input
-                    type="checkbox"
-                    checked={state.settings.preferAltLinks}
-                    onChange={(event) => updateSettings({ preferAltLinks: event.target.checked })}
-                  />
-                  Prefer alternate links for premium Blind cards
-                </label>
-                <label className="toggle-row">
-                  <input
-                    type="checkbox"
-                    checked={state.settings.soundEnabled !== false}
-                    onChange={(event) => updateSettings({ soundEnabled: event.target.checked })}
-                  />
-                  Ritual chimes and completion tones
-                </label>
-                <input ref={fileRef} type="file" accept=".csv,text/csv" hidden onChange={importCsv} />
-              </div>
-            </StudioCard>
-
-            <StudioCard
-              title="Momentum"
-              subtitle="A softer, more ceremonial progress layer."
-              action={<span className="section-chip">{state.game.unlocked.length} unlocked</span>}
-            >
-              <div className="momentum-panel">
-                <div className="momentum-meter">
-                  <span>Level {state.game.level}</span>
-                  <strong>{state.game.xp} XP</strong>
-                  <div className="progress-track">
-                    <span style={{ width: `${levelProgress}%` }} />
-                  </div>
+                          ) : null}
+                          <button className="button button-primary" type="button" disabled={solved} onClick={() => toggleSolved(item.id)}>
+                            {solved ? "Solved" : "Mark solved"}
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
-                <div className="momentum-grid">
-                  <MetricCell label="Coins" value={state.game.coins} />
-                  <MetricCell label="Today reviews" value={`${state.game.daily.reviews}/5`} />
-                  <MetricCell label="Today solves" value={`${state.game.daily.solves}/2`} />
-                  <MetricCell label="Overdue" value={overdueItems.length} />
-                </div>
-              </div>
-              <div className="achievement-list">
-                {Object.entries(achievementMap).map(([key, label]) => {
-                  const unlocked = state.game.unlocked.includes(key);
-                  return (
-                    <div className={`achievement-item ${unlocked ? "is-unlocked" : ""}`} key={key}>
-                      <span>{unlocked ? "Unlocked" : "Locked"}</span>
-                      <strong>{label}</strong>
-                    </div>
-                  );
-                })}
-              </div>
-            </StudioCard>
-            <StudioCard
-              title="Session Log"
-              subtitle="Recent wins, reminders, and ritual echoes."
-              action={<span className="section-chip">Recent</span>}
-            >
-              <div className="log-list">
-                {state.reminders.length ? (
-                  state.reminders.map((entry) => <div key={entry}>{entry}</div>)
-                ) : (
-                  <EmptyState text="Nothing logged yet. Once you start using rituals, your session history appears here." />
-                )}
-              </div>
-            </StudioCard>
-              </>
-            ) : (
-              <StudioCard
-                title="Side Notes"
-                subtitle="Only light supporting context while you work through the current view."
-                action={<span className="section-chip">Quiet mode</span>}
+              </Panel>
+            </div>
+          ) : null}
+
+          {view === "settings" ? (
+            <div className="screen-grid">
+              <Panel
+                title="Settings"
+                subtitle="Connection, reminders, sound, and ritual preferences."
+                action={<span className="section-chip">Live</span>}
               >
-                <div className="side-summary">
-                  <MetricCell label="Active deck" value={activeDeck?.name || "None"} />
-                  <MetricCell label="Cards ready" value={activeDeckItems.length} />
-                  <MetricCell label="Custom decks" value={customDecks.length} />
-                  <MetricCell label="Status" value={status.length > 18 ? "Live" : status} />
+                <div className="two-column">
+                  <div className="builder-form">
+                    <label>
+                      Google Sheet URL
+                      <input
+                        type="url"
+                        placeholder="Paste a Google Sheet URL"
+                        value={state.settings.sheetUrl}
+                        onChange={(event) => updateSettings({ sheetUrl: event.target.value })}
+                      />
+                    </label>
+                    <label>
+                      Refresh interval
+                      <input
+                        type="number"
+                        min="5"
+                        max="240"
+                        value={state.settings.refreshMinutes}
+                        onChange={(event) =>
+                          updateSettings({
+                            refreshMinutes: clampNumber(event.target.value, 5, 240, 30),
+                          })
+                        }
+                      />
+                    </label>
+                    <label>
+                      Reminder cadence
+                      <input
+                        type="number"
+                        min="5"
+                        max="180"
+                        value={state.settings.reminderMinutes}
+                        onChange={(event) =>
+                          updateSettings({
+                            reminderMinutes: clampNumber(event.target.value, 5, 180, 20),
+                          })
+                        }
+                      />
+                    </label>
+                    <label>
+                      Theme
+                      <select
+                        value={state.settings.themeMode}
+                        onChange={(event) => updateSettings({ themeMode: event.target.value })}
+                      >
+                        <option value="night">Night studio</option>
+                        <option value="dawn">Dawn studio</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="stack-list">
+                    <button className="button button-primary" type="button" onClick={() => syncFromSheet(false)}>
+                      Sync from sheet
+                    </button>
+                    <button className="button button-secondary" type="button" onClick={() => fileRef.current?.click()}>
+                      Import CSV
+                    </button>
+                    <button className="button button-ghost" type="button" onClick={enableNotifications}>
+                      Enable notifications
+                    </button>
+                    <label className="toggle-line">
+                      <input
+                        type="checkbox"
+                        checked={state.settings.preferAltLinks}
+                        onChange={(event) => updateSettings({ preferAltLinks: event.target.checked })}
+                      />
+                      Prefer alternate links for premium Blind cards
+                    </label>
+                    <label className="toggle-line">
+                      <input
+                        type="checkbox"
+                        checked={state.settings.soundEnabled !== false}
+                        onChange={(event) => updateSettings({ soundEnabled: event.target.checked })}
+                      />
+                      Enable ritual sounds
+                    </label>
+                    <input ref={fileRef} type="file" accept=".csv,text/csv" hidden onChange={importCsv} />
+                  </div>
                 </div>
-                <div className="soft-note">
-                  {activeView === "today"
-                    ? "The app is intentionally showing less right now so your next action is easier to see."
-                    : activeView === "decks"
-                      ? "Build or choose a deck here, then switch back to Today when you want to review."
-                      : "Use Library to route cards into decks without the rest of the workspace competing for attention."}
+              </Panel>
+
+              <Panel
+                title="Session Log"
+                subtitle="A lightweight history of recent activity."
+                action={<span className="section-chip">Recent</span>}
+              >
+                <div className="stack-list">
+                  {state.reminders.length ? (
+                    state.reminders.map((entry) => <div className="log-row" key={entry}>{entry}</div>)
+                  ) : (
+                    <EmptyState text="Nothing logged yet. Once you begin rituals, your recent session activity will appear here." />
+                  )}
                 </div>
-              </StudioCard>
-            )}
-          </aside>
+              </Panel>
+            </div>
+          ) : null}
         </section>
       </main>
     </div>
   );
-}
-
-function buildSystemDecks({ dueItems, overdueItems, openItems, trackedBlindItems }) {
-  return [
-    {
-      id: "system:due",
-      kind: "system",
-      name: "Due Ritual",
-      description: "Everything that needs recall right now.",
-      copy: "Best for short, clean review sweeps.",
-      tone: "ember",
-      itemIds: dueItems.map((item) => item.id),
-      count: dueItems.length,
-    },
-    {
-      id: "system:overdue",
-      kind: "system",
-      name: "Recovery Deck",
-      description: "Cards with slipping deadlines and neglected momentum.",
-      copy: "Use this when you want to recover shape quickly.",
-      tone: "atlas",
-      itemIds: overdueItems.map((item) => item.id),
-      count: overdueItems.length,
-    },
-    {
-      id: "system:flow",
-      kind: "system",
-      name: "Flow Stack",
-      description: "Open work cards, lightly sorted for a productive pass.",
-      copy: "A balanced deck for calm progress sessions.",
-      tone: "aurora",
-      itemIds: openItems.map((item) => item.id),
-      count: openItems.length,
-    },
-    {
-      id: "system:blind",
-      kind: "system",
-      name: "Blind Practice",
-      description: "All tracked interview cards in one smooth practice deck.",
-      copy: "Great for coding ritual sessions.",
-      tone: "atlas",
-      itemIds: trackedBlindItems.map((item) => item.id),
-      count: trackedBlindItems.length,
-    },
-  ];
-}
-
-function hydrateCustomDeck(deck, items) {
-  const count = deck.itemIds.filter((itemId) => items.some((item) => item.id === itemId)).length;
-  return {
-    ...deck,
-    kind: "custom",
-    copy: deck.description || "A custom ritual stack.",
-    count,
-  };
-}
-
-function resolveDeckItems(deck, items) {
-  if (!deck) return [];
-  const byId = new Map(items.map((item) => [item.id, item]));
-  return (deck.itemIds || []).map((itemId) => byId.get(itemId)).filter(Boolean);
 }
 
 function ensureDailyState(sourceState) {
@@ -1291,7 +1104,6 @@ function ensureDailyState(sourceState) {
     current.game.streak = Math.max(current.game.streak, 1);
     return current;
   }
-
   const previous = new Date(`${current.game.daily.date}T00:00:00`);
   const expected = dayKey(new Date(previous.getTime() + 86400000));
   current.game.streak = expected === today ? current.game.streak + 1 : 1;
@@ -1299,10 +1111,39 @@ function ensureDailyState(sourceState) {
   return current;
 }
 
-function StudioCard({ title, subtitle, action, children }) {
+function hydrateCustomDeck(deck, items) {
+  const count = deck.itemIds.filter((itemId) => items.some((item) => item.id === itemId)).length;
+  return {
+    ...deck,
+    kind: "custom",
+    copy: deck.description || "A custom trainer deck.",
+    count,
+  };
+}
+
+function resolveDeckItems(deck, items) {
+  if (!deck) return [];
+  const byId = new Map(items.map((item) => [item.id, item]));
+  return (deck.itemIds || []).map((itemId) => byId.get(itemId)).filter(Boolean);
+}
+
+function difficultyTone(difficulty) {
+  if (difficulty === "Hard") return "sun";
+  if (difficulty === "Medium") return "wave";
+  return "forest";
+}
+
+function deckSigil(name) {
+  const clean = String(name || "").replace(/[^a-zA-Z0-9 ]+/g, "").trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return clean.slice(0, 2).toUpperCase() || "WP";
+}
+
+function Panel({ title, subtitle, action, children }) {
   return (
-    <section className="studio-card glass">
-      <div className="studio-head">
+    <section className="panel">
+      <div className="panel-head">
         <div>
           <h2>{title}</h2>
           <p>{subtitle}</p>
@@ -1314,17 +1155,46 @@ function StudioCard({ title, subtitle, action, children }) {
   );
 }
 
-function MetricCell({ label, value }) {
+function MetricBadge({ label, value }) {
   return (
-    <div className="metric-cell">
+    <div className="metric-badge">
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
   );
 }
 
-function FocusSessionOverlay({ deck, session, currentItem, progress, onClose, onAnswer }) {
-  const elapsedSeconds = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
+function TrainerCardHeader({ tag, type }) {
+  return (
+    <div className="trainer-header">
+      <span>{tag}</span>
+      <span>{type}</span>
+    </div>
+  );
+}
+
+function TrainerCard({ item, badge, footer }) {
+  return (
+    <article className="trainer-card">
+      <TrainerCardHeader tag={item.category} type={badge} />
+      <div className={`trainer-art art-${difficultyTone(item.difficulty || "Medium")}`}>
+        <div className="trainer-sigil">{deckSigil(item.title)}</div>
+      </div>
+      <div className="trainer-name-row">
+        <strong>{item.title}</strong>
+        <span className="trainer-hp">{item.dueDate ? formatRelative(item.dueDate) : formatDate(item.srs.nextReview)}</span>
+      </div>
+      <div className="trainer-info">
+        <div><span>Status</span><b>{item.status}</b></div>
+        <div><span>Recall</span><b>{item.srs.interval} day interval</b></div>
+      </div>
+      {footer ? <div className="trainer-footer">{footer}</div> : null}
+    </article>
+  );
+}
+
+function FocusSessionOverlay({ deck, session, currentItem, progress, onAnswer, onClose }) {
+  const elapsed = Math.max(1, Math.round((Date.now() - session.startedAt) / 1000));
 
   return (
     <div className="session-overlay">
@@ -1332,65 +1202,54 @@ function FocusSessionOverlay({ deck, session, currentItem, progress, onClose, on
       <div className={`session-shell ${session.step === "transition" ? "is-transitioning" : ""}`}>
         <div className="session-topbar">
           <div>
-            <span className="eyebrow">Focus Session</span>
-            <h2>{deck?.name || "Ritual"}</h2>
+            <p className="eyebrow">Ritual Session</p>
+            <h2>{deck?.name || "Session"}</h2>
           </div>
-          <button className="button button-ghost" onClick={onClose}>
-            Exit ritual
+          <button className="button button-ghost" type="button" onClick={onClose}>
+            Leave ritual
           </button>
         </div>
 
-        <div className="session-progress">
-          <div className="progress-caption">
-            <span>
-              Card {Math.min(session.index + 1, session.queue.length)} of {session.queue.length}
-            </span>
-            <span>{elapsedSeconds}s elapsed</span>
-          </div>
-          <div className="progress-track">
-            <span style={{ width: `${progress}%` }} />
-          </div>
+        <div className="progress-caption">
+          <span>
+            Card {Math.min(session.index + 1, session.queue.length)} of {session.queue.length}
+          </span>
+          <span>{elapsed}s</span>
+        </div>
+        <div className="progress-track">
+          <span style={{ width: `${progress}%` }} />
         </div>
 
         {session.step === "complete" ? (
           <div className="session-complete">
-            <p className="eyebrow">Session Complete</p>
-            <h3>Clean run. The ritual is closed.</h3>
-            <p>
-              You reviewed {session.reviewed.length} cards in {Math.max(1, elapsedSeconds)} seconds.
-            </p>
-            <button className="button button-primary" onClick={onClose}>
+            <p className="eyebrow">Ritual Complete</p>
+            <h3>You cleared {session.reviewed.length} cards.</h3>
+            <p>Return to the studio when you want the next deck.</p>
+            <button className="button button-primary" type="button" onClick={onClose}>
               Return to studio
             </button>
           </div>
         ) : currentItem ? (
-          <div className="session-stage">
-            <article className="session-card">
-              <div className="session-card-head">
-                <span>{currentItem.category}</span>
-                <span>{currentItem.source}</span>
-              </div>
-              <strong>{currentItem.title}</strong>
-              <p>
-                {currentItem.dueDate
-                  ? `Deadline ${formatDate(currentItem.dueDate)}`
-                  : `Next review ${formatDate(currentItem.srs.nextReview)}`}
-              </p>
-            </article>
-
+          <>
+            <div className="session-card-frame">
+              <TrainerCard item={currentItem} badge={`Card ${session.index + 1}`} />
+            </div>
             <div className="session-actions">
               {[1, 3, 4, 5].map((quality) => (
                 <button
                   key={quality}
+                  type="button"
                   className={`session-answer answer-${quality}`}
                   onClick={() => onAnswer(quality)}
                 >
                   <span>{qualityLabel(quality)}</span>
-                  <strong>{quality === 1 ? "Reset" : quality === 3 ? "Strain" : quality === 4 ? "Solid" : "Fluent"}</strong>
+                  <strong>
+                    {quality === 1 ? "Reset" : quality === 3 ? "Tough" : quality === 4 ? "Good" : "Easy"}
+                  </strong>
                 </button>
               ))}
             </div>
-          </div>
+          </>
         ) : null}
       </div>
     </div>
