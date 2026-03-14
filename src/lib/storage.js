@@ -14,7 +14,7 @@ export const defaultState = {
     themeMode: "night",
     ritualTone: "ember",
     soundEnabled: true,
-    activeDeckId: "system:due",
+    activeDeckId: "system:today",
     selectedCustomDeckId: "",
   },
   decks: [],

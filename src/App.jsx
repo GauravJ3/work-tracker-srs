@@ -171,8 +171,13 @@ function App() {
     [smartDecks, customDecks, state.items],
   );
 
-  const activeDeck = allDecks.find((deck) => deck.id === activeDeckId) || allDecks[0];
-  const activeDeckItems = useMemo(() => resolveDeckItems(activeDeck, state.items), [activeDeck, state.items]);
+  const recommendedDeck = useMemo(
+    () => allDecks.find((deck) => deck.count > 0) || allDecks[0] || null,
+    [allDecks],
+  );
+  const activeDeck = allDecks.find((deck) => deck.id === activeDeckId) || recommendedDeck;
+  const displayDeck = activeDeck?.count ? activeDeck : recommendedDeck;
+  const activeDeckItems = useMemo(() => resolveDeckItems(displayDeck, state.items), [displayDeck, state.items]);
   const selectedCustomDeck =
     customDecks.find((deck) => deck.id === state.settings.selectedCustomDeckId) || customDecks[0] || null;
   const solvedCount = state.game.solvedBlind.length;
@@ -230,7 +235,7 @@ function App() {
       tone: "forest",
     },
   ];
-  const HeroDeckIcon = getDeckIcon(activeDeck?.name);
+  const HeroDeckIcon = getDeckIcon(displayDeck?.name);
 
   function updateSettings(partial) {
     setState((current) => ({
@@ -570,21 +575,25 @@ function App() {
   }
 
   function startSession(deck) {
-    const queue = resolveDeckItems(deck, state.items).filter((item) => !/done|complete/i.test(item.status));
+    const candidateDeck = deck?.count ? deck : recommendedDeck;
+    const queue = resolveDeckItems(candidateDeck, state.items).filter((item) => !/done|complete/i.test(item.status));
     if (!queue.length) {
-      setStatus("This deck is empty right now.");
+      setStatus(state.items.length ? "No cards are ready in this deck yet. Try Deck Garden or Archive." : "No cards yet. Add one from Archive or import a sheet first.");
       return;
     }
     setSession({
       open: true,
-      deckId: deck.id,
+      deckId: candidateDeck.id,
       queue,
       index: 0,
       step: "live",
       reviewed: [],
       startedAt: Date.now(),
     });
-    setRitualHint(`Entering ${deck.name}. ${deck.copy}`);
+    if (candidateDeck.id !== deck?.id) {
+      updateSettings({ activeDeckId: candidateDeck.id });
+    }
+    setRitualHint(`Entering ${candidateDeck.name}. ${candidateDeck.copy}`);
     playTone("pulse");
   }
 
@@ -627,7 +636,7 @@ function App() {
 
   function inspire() {
     const suggestions = [
-      `Start with ${activeDeck?.name || "Today Ritual"} for the cleanest pass.`,
+      `Start with ${recommendedDeck?.name || displayDeck?.name || "Today Ritual"} for the cleanest pass.`,
       dueItems.length
         ? `You have ${dueItems.length} due cards. A short ritual would clear them.`
         : "Your due queue is calm. This is a good time to build a deck.",
@@ -677,9 +686,9 @@ function App() {
             </p>
           </div>
           <div className="hero-actions">
-            <button className="button button-primary" type="button" onClick={() => startSession(activeDeck)}>
+            <button className="button button-primary" type="button" onClick={() => startSession(displayDeck)}>
               <Play size={16} />
-              Start {activeDeck?.name || "ritual"}
+              Start {displayDeck?.name || "ritual"}
             </button>
             <button className="button button-secondary" type="button" onClick={inspire}>
               <Sparkles size={16} />
@@ -692,7 +701,7 @@ function App() {
           <article className="hero-focus panel">
             <div className="hero-focus-copy">
               <span className="hero-label">Sanctuary recommendation</span>
-              <strong>{activeDeck?.name || "Today Ritual"}</strong>
+              <strong>{displayDeck?.name || "Today Ritual"}</strong>
               <p>{ritualHint}</p>
             </div>
             <div className="hero-metrics">
@@ -702,9 +711,9 @@ function App() {
             </div>
           </article>
           <article className="hero-card-preview trainer-card trainer-card-deck trainer-card-feature">
-            <TrainerCardHeader tag="Active Deck" type={activeDeck?.kind === "custom" ? "Custom" : "Smart"} />
-            <div className={`trainer-art art-${activeDeck?.tone || "sun"}`}>
-              <div className="trainer-sigil">{deckSigil(activeDeck?.name || "TR")}</div>
+            <TrainerCardHeader tag="Active Deck" type={displayDeck?.kind === "custom" ? "Custom" : "Smart"} />
+            <div className={`trainer-art art-${displayDeck?.tone || "sun"}`}>
+              <div className="trainer-sigil">{deckSigil(displayDeck?.name || "TR")}</div>
               <span className="trainer-art-icon" aria-hidden="true">
                 <HeroDeckIcon size={18} />
               </span>
@@ -714,12 +723,12 @@ function App() {
                 <span className="trainer-name-icon" aria-hidden="true">
                   <HeroDeckIcon size={16} />
                 </span>
-                {activeDeck?.name || "Today Ritual"}
+                {displayDeck?.name || "Today Ritual"}
               </strong>
-              <span className="trainer-hp">{activeDeck?.count || 0} cards</span>
+              <span className="trainer-hp">{displayDeck?.count || 0} cards</span>
             </div>
             <div className="trainer-info">
-              <div><span>Path</span><b>{activeDeck?.description || "Start with the cards due now."}</b></div>
+              <div><span>Path</span><b>{displayDeck?.description || "Start with the cards due now."}</b></div>
               <div><span>Mode</span><b>{currentTheme.name}</b></div>
             </div>
           </article>
@@ -747,7 +756,7 @@ function App() {
         <section className="workspace">
           {view === "home" ? (
             <SanctuaryScreen
-              activeDeck={activeDeck}
+              activeDeck={displayDeck}
               activeDeckItems={activeDeckItems}
               homeCards={homeCards}
               portals={portals}
