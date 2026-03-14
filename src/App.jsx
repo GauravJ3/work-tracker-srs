@@ -1,30 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Archive,
-  Bell,
-  CheckCircle2,
-  ExternalLink,
-  FolderPlus,
-  Play,
-  RefreshCw,
-  Sparkles,
-  Upload,
-} from "lucide-react";
+import { Play, Sparkles } from "lucide-react";
+import SanctuaryScreen from "./components/screens/SanctuaryScreen";
+import DeckGardenScreen from "./components/screens/DeckGardenScreen";
+import ArchiveScreen from "./components/screens/ArchiveScreen";
+import ObservatoryScreen from "./components/screens/ObservatoryScreen";
+import RitualChamber from "./components/session/RitualChamber";
+import MetricBadge from "./components/shared/MetricBadge";
+import TrainerCardHeader from "./components/cards/TrainerCardHeader";
+import { deckSigil } from "./components/cards/TrainerCard";
 import { blindItems } from "./data/blind75";
 import { createManualItem, mergeImportedItems, parseCsv, rowsToItems } from "./lib/importers";
 import { fetchSheetRows } from "./lib/sheets";
 import { applySrsReview, createDefaultSrs, isDue } from "./lib/srs";
 import { defaultState, loadState, saveState } from "./lib/storage";
-import { clampNumber, createId, dayKey, formatDate, formatRelative, normalize, qualityLabel } from "./lib/utils";
-
-const achievementMap = {
-  sheet_rookie: "Connected your first sheet",
-  reviewer_10: "Completed 10 reviews",
-  solver_10: "Solved 10 Blind 75 problems",
-  level_5: "Reached level 5",
-  streak_7: "Held a 7-day streak",
-  inbox_zero: "Cleared every due review",
-};
+import { clampNumber, createId, dayKey, normalize } from "./lib/utils";
 
 const ritualThemes = [
   { id: "sun", name: "Sun Deck", accent: "gold", copy: "Warm, decisive, and excellent for your daily ritual." },
@@ -180,6 +169,7 @@ function App() {
     () => [...smartDecks, ...customDecks.map((deck) => hydrateCustomDeck(deck, state.items))],
     [smartDecks, customDecks, state.items],
   );
+
   const activeDeck = allDecks.find((deck) => deck.id === activeDeckId) || allDecks[0];
   const activeDeckItems = useMemo(() => resolveDeckItems(activeDeck, state.items), [activeDeck, state.items]);
   const selectedCustomDeck =
@@ -187,11 +177,7 @@ function App() {
   const solvedCount = state.game.solvedBlind.length;
   const focusScore = Math.min(
     99,
-    Math.round(
-      (dueItems.length ? 48 : 78) +
-        Math.min(10, state.game.streak * 2) +
-        Math.min(10, completedCount),
-    ),
+    Math.round((dueItems.length ? 48 : 78) + Math.min(10, state.game.streak * 2) + Math.min(10, completedCount)),
   );
   const levelFloor = (state.game.level - 1) * 120;
   const levelGoal = state.game.level * 120;
@@ -209,10 +195,8 @@ function App() {
     return blindItems.filter((item) => {
       const matchesSearch =
         !normalizedSearch || normalize(item.title).replaceAll("_", "").includes(normalizedSearch);
-      const matchesCategory =
-        filters.category === "All categories" || item.category === filters.category;
-      const matchesDifficulty =
-        filters.difficulty === "All difficulty" || item.difficulty === filters.difficulty;
+      const matchesCategory = filters.category === "All categories" || item.category === filters.category;
+      const matchesDifficulty = filters.difficulty === "All difficulty" || item.difficulty === filters.difficulty;
       return matchesSearch && matchesCategory && matchesDifficulty;
     });
   }, [filters]);
@@ -444,7 +428,7 @@ function App() {
       );
     });
     playTone(quality >= 4 ? "resolve" : "soft");
-    awardXp({ 1: 2, 3: 6, 4: 10, 5: 14 }[quality] || 5, `${reason}: ${qualityLabel(quality)}`, "mint");
+    awardXp({ 1: 2, 3: 6, 4: 10, 5: 14 }[quality] || 5, `${reason}: ${quality <= 1 ? "Again" : quality === 3 ? "Hard" : quality === 4 ? "Good" : "Easy"}`, "mint");
   }
 
   function completeItem(itemId) {
@@ -501,9 +485,7 @@ function App() {
   function selectDeck(deckId) {
     updateSettings({ activeDeckId: deckId });
     const deck = allDecks.find((entry) => entry.id === deckId);
-    if (deck?.kind === "custom") {
-      updateSettings({ selectedCustomDeckId: deck.id });
-    }
+    if (deck?.kind === "custom") updateSettings({ selectedCustomDeckId: deck.id });
     setRitualHint(deck ? deck.copy : "Choose a deck and begin.");
   }
 
@@ -644,8 +626,12 @@ function App() {
   function inspire() {
     const suggestions = [
       `Start with ${activeDeck?.name || "Today Ritual"} for the cleanest pass.`,
-      dueItems.length ? `You have ${dueItems.length} due cards. A short ritual would clear them.` : "Your due queue is calm. This is a good time to build a deck.",
-      selectedCustomDeck ? `Keep curating ${selectedCustomDeck.name} until it feels like your best session deck.` : "Create one custom deck for your highest-stakes work.",
+      dueItems.length
+        ? `You have ${dueItems.length} due cards. A short ritual would clear them.`
+        : "Your due queue is calm. This is a good time to build a deck.",
+      selectedCustomDeck
+        ? `Keep curating ${selectedCustomDeck.name} until it feels like your best session deck.`
+        : "Create one custom deck for your highest-stakes work.",
     ];
     setRitualHint(suggestions[Math.floor(Math.random() * suggestions.length)]);
   }
@@ -669,7 +655,7 @@ function App() {
       </div>
 
       {session.open ? (
-        <FocusSessionOverlay
+        <RitualChamber
           deck={allDecks.find((deck) => deck.id === session.deckId)}
           session={session}
           currentItem={currentSessionItem}
@@ -744,454 +730,71 @@ function App() {
 
         <section className="workspace">
           {view === "home" ? (
-            <div className="screen-grid">
-              <Panel
-                title="Sanctuary"
-                subtitle="Start here, choose one path, and let everything else stay quiet."
-                action={<span className="section-chip">{activeDeck?.count || 0} cards in focus</span>}
-              >
-                <div className="world-intro">
-                  <div className="world-story">
-                    <p className="world-line">
-                      Tonight&apos;s path leads through <strong>{activeDeck?.name || "Today Ritual"}</strong>. The queue is small enough to feel approachable and sharp enough to matter.
-                    </p>
-                    <div className="hero-actions">
-                      <button className="button button-primary" type="button" onClick={() => startSession(activeDeck)}>
-                        <Play size={16} />
-                        Enter ritual
-                      </button>
-                      <button className="button button-ghost" type="button" onClick={() => setView("decks")}>
-                        <Archive size={16} />
-                        Explore decks
-                      </button>
-                    </div>
-                  </div>
-                  <div className="portal-grid">
-                    {portals.map((portal) => (
-                      <button
-                        key={portal.id}
-                        type="button"
-                        className={`portal-card portal-${portal.tone}`}
-                        onClick={() => setView(portal.id)}
-                      >
-                        <span>{portal.stat}</span>
-                        <strong>{portal.title}</strong>
-                        <p>{portal.description}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="card-row">
-                  {homeCards.length ? (
-                    homeCards.map((item, index) => (
-                      <TrainerCard
-                        key={item.id}
-                        item={item}
-                        badge={index === 0 ? "Next Card" : `#${index + 1}`}
-                        footer={
-                          <button className="button button-ghost" type="button" onClick={() => startSession(activeDeck)}>
-                            <Play size={16} />
-                            Review in session
-                          </button>
-                        }
-                      />
-                    ))
-                  ) : (
-                    <EmptyState text="No cards in this ritual yet. Choose another deck or add cards from Library." />
-                  )}
-                </div>
-              </Panel>
-
-              <Panel
-                title="Campfire"
-                subtitle="Just enough signal to keep your rhythm."
-                action={<span className="section-chip">{state.game.unlocked.length} unlocked</span>}
-              >
-                <div className="metrics-strip">
-                  <MetricBadge label="Level" value={state.game.level} />
-                  <MetricBadge label="XP" value={state.game.xp} />
-                  <MetricBadge label="Coins" value={state.game.coins} />
-                  <MetricBadge label="Solved" value={`${solvedCount}/75`} />
-                </div>
-                <div className="progress-section">
-                  <div className="progress-caption">
-                    <span>Level progress</span>
-                    <span>{levelProgress}%</span>
-                  </div>
-                  <div className="progress-track">
-                    <span style={{ width: `${levelProgress}%` }} />
-                  </div>
-                </div>
-              </Panel>
-            </div>
+            <SanctuaryScreen
+              activeDeck={activeDeck}
+              activeDeckItems={activeDeckItems}
+              homeCards={homeCards}
+              portals={portals}
+              setView={setView}
+              startSession={startSession}
+              state={state}
+              solvedCount={solvedCount}
+              levelProgress={levelProgress}
+              ritualHint={ritualHint}
+              focusScore={focusScore}
+            />
           ) : null}
 
           {view === "decks" ? (
-            <div className="screen-grid">
-              <Panel
-                title="Deck Garden"
-                subtitle="Choose a ritual mood, then grow your own decks beside the smart ones."
-                action={<span className="section-chip">{allDecks.length} total decks</span>}
-              >
-                <div className="theme-picker">
-                  {ritualThemes.map((theme) => (
-                    <button
-                      key={theme.id}
-                      type="button"
-                      className={`theme-card ${activeThemeId === theme.id ? "is-active" : ""}`}
-                      onClick={() => updateSettings({ ritualTone: theme.id })}
-                    >
-                      <strong>{theme.name}</strong>
-                      <span>{theme.copy}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="card-row">
-                  {allDecks.map((deck) => (
-                    <button
-                      key={deck.id}
-                      type="button"
-                      className={`trainer-card trainer-card-button ${activeDeckId === deck.id ? "is-selected" : ""}`}
-                      onClick={() => selectDeck(deck.id)}
-                    >
-                      <TrainerCardHeader tag={deck.kind === "custom" ? "Custom Deck" : "Smart Deck"} type={deck.count} />
-                      <div className={`trainer-art art-${deck.tone || "sun"}`}>
-                        <div className="trainer-sigil">{deckSigil(deck.name)}</div>
-                      </div>
-                      <div className="trainer-name-row">
-                        <strong>{deck.name}</strong>
-                        <span className="trainer-hp">{deck.count} cards</span>
-                      </div>
-                      <div className="trainer-info">
-                        <div><span>Feel</span><b>{deck.description}</b></div>
-                        <div><span>Play</span><b>{deck.copy}</b></div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </Panel>
-
-              <Panel
-                title="Forge A Deck"
-                subtitle="Name a path, give it a feeling, and it becomes a place you can return to."
-                action={<span className="section-chip">{customDecks.length} custom</span>}
-              >
-                <div className="two-column">
-                  <form className="builder-form" onSubmit={createDeck}>
-                    <input
-                      placeholder="Deck name"
-                      value={deckForm.name}
-                      onChange={(event) => setDeckForm((current) => ({ ...current, name: event.target.value }))}
-                    />
-                    <textarea
-                      rows="4"
-                      placeholder="What is this deck for?"
-                      value={deckForm.description}
-                      onChange={(event) => setDeckForm((current) => ({ ...current, description: event.target.value }))}
-                    />
-                    <button className="button button-primary" type="submit">
-                      <FolderPlus size={16} />
-                      Create deck
-                    </button>
-                  </form>
-                  <div className="stack-list">
-                    {customDecks.length ? (
-                      customDecks.map((deck) => {
-                        const hydrated = hydrateCustomDeck(deck, state.items);
-                        const selected = selectedCustomDeck?.id === deck.id;
-                        return (
-                          <article className={`list-row ${selected ? "is-selected" : ""}`} key={deck.id}>
-                            <button type="button" className="list-row-main" onClick={() => selectDeck(deck.id)}>
-                              <strong>{deck.name}</strong>
-                              <span>{hydrated.count} cards • {deck.description}</span>
-                            </button>
-                            <button className="button button-ghost" type="button" onClick={() => removeDeck(deck.id)}>
-                              <Archive size={16} />
-                              Archive
-                            </button>
-                          </article>
-                        );
-                      })
-                    ) : (
-                      <EmptyState text="No custom decks yet. Create one and then start routing cards into it." />
-                    )}
-                  </div>
-                </div>
-              </Panel>
-            </div>
+            <DeckGardenScreen
+              ritualThemes={ritualThemes}
+              activeThemeId={activeThemeId}
+              updateSettings={updateSettings}
+              allDecks={allDecks}
+              activeDeckId={activeDeckId}
+              selectDeck={selectDeck}
+              deckForm={deckForm}
+              setDeckForm={setDeckForm}
+              createDeck={createDeck}
+              customDecks={customDecks}
+              hydrateCustomDeck={hydrateCustomDeck}
+              state={state}
+              selectedCustomDeck={selectedCustomDeck}
+              removeDeck={removeDeck}
+            />
           ) : null}
 
           {view === "library" ? (
-            <div className="screen-grid">
-              <Panel
-                title="Archive"
-                subtitle="Browse, refine, and route cards into the right deck."
-                action={<span className="section-chip">{state.items.length} cards</span>}
-              >
-                <div className="subview-switch">
-                  <button
-                    type="button"
-                    className={`subview-chip ${libraryMode === "work" ? "is-active" : ""}`}
-                    onClick={() => setLibraryMode("work")}
-                  >
-                    Work Cards
-                  </button>
-                  <button
-                    type="button"
-                    className={`subview-chip ${libraryMode === "blind" ? "is-active" : ""}`}
-                    onClick={() => setLibraryMode("blind")}
-                  >
-                    Blind Cards
-                  </button>
-                </div>
-
-                {libraryMode === "work" ? (
-                  <>
-                <form className="quick-add" onSubmit={addManualTask}>
-                  <input
-                    placeholder="Task or topic"
-                    value={itemForm.title}
-                    onChange={(event) => setItemForm((current) => ({ ...current, title: event.target.value }))}
-                  />
-                  <input
-                    placeholder="Category"
-                    value={itemForm.category}
-                    onChange={(event) => setItemForm((current) => ({ ...current, category: event.target.value }))}
-                  />
-                  <button className="button button-primary" type="submit">
-                    <FolderPlus size={16} />
-                    Add card
-                  </button>
-                    </form>
-                    <div className="card-row">
-                      {state.items.slice(0, 16).map((item) => {
-                        const done = /done|complete/i.test(item.status);
-                        const inDeck = selectedCustomDeck?.itemIds.includes(item.id);
-                        return (
-                          <TrainerCard
-                            key={item.id}
-                            item={item}
-                            badge={item.source}
-                            footer={
-                              <div className="card-actions">
-                                {!done ? (
-                                  <button className="button button-ghost" type="button" onClick={() => completeItem(item.id)}>
-                                    <CheckCircle2 size={16} />
-                                    Complete
-                                  </button>
-                                ) : null}
-                                {selectedCustomDeck ? (
-                                  inDeck ? (
-                                    <button
-                                      className="button button-ghost"
-                                      type="button"
-                                      onClick={() => removeTrackedItemFromDeck(selectedCustomDeck.id, item.id)}
-                                    >
-                                      Remove from deck
-                                    </button>
-                                  ) : (
-                                    <button
-                                      className="button button-ghost"
-                                      type="button"
-                                      onClick={() => addTrackedItemToDeck(selectedCustomDeck.id, item.id)}
-                                    >
-                                      <FolderPlus size={16} />
-                                      Add to {selectedCustomDeck.name}
-                                    </button>
-                                  )
-                                ) : null}
-                              </div>
-                            }
-                          />
-                        );
-                      })}
-                    </div>
-                  </>
-                ) : null}
-
-                {libraryMode === "blind" ? (
-                  <>
-                <div className="panel-inline-head">
-                  <span className="section-chip">{filteredBlind.length} matches</span>
-                </div>
-                <div className="quick-add quick-add-filters">
-                  <input
-                    placeholder="Search prompts"
-                    value={filters.search}
-                    onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-                  />
-                  <select
-                    value={filters.category}
-                    onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}
-                  >
-                    {blindCategories.map((option) => (
-                      <option key={option}>{option}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={filters.difficulty}
-                    onChange={(event) => setFilters((current) => ({ ...current, difficulty: event.target.value }))}
-                  >
-                    {["All difficulty", "Easy", "Medium", "Hard"].map((option) => (
-                      <option key={option}>{option}</option>
-                    ))}
-                    </select>
-                </div>
-                <div className="card-row">
-                  {filteredBlind.slice(0, 10).map((item) => {
-                    const tracked = state.items.some((entry) => entry.blindId === item.id);
-                    const solved = state.game.solvedBlind.includes(item.id);
-                    const href = item.premium && state.settings.preferAltLinks ? item.alt : item.link;
-                    return (
-                      <article className="trainer-card" key={item.id}>
-                        <TrainerCardHeader tag={item.category} type={item.difficulty} />
-                        <div className={`trainer-art art-${difficultyTone(item.difficulty)}`}>
-                          <div className="trainer-sigil">{deckSigil(item.title)}</div>
-                        </div>
-                        <div className="trainer-name-row">
-                          <strong>
-                            <a href={href} target="_blank" rel="noreferrer">
-                              {item.title}
-                              <ExternalLink size={14} className="inline-icon" />
-                            </a>
-                          </strong>
-                          <span className="trainer-hp">{solved ? "Solved" : tracked ? "Tracked" : "Wild"}</span>
-                        </div>
-                        <div className="trainer-info">
-                          <div><span>Status</span><b>{solved ? "Captured in your trainer log." : "Ready to add to your ritual."}</b></div>
-                        </div>
-                        <div className="card-actions">
-                          <button className="button button-ghost" type="button" onClick={() => addBlindItem(item)}>
-                            <FolderPlus size={16} />
-                            {tracked ? "Track again" : "Track"}
-                          </button>
-                          {selectedCustomDeck ? (
-                            <button className="button button-ghost" type="button" onClick={() => addBlindItem(item, selectedCustomDeck.id)}>
-                              <FolderPlus size={16} />
-                              Add to deck
-                            </button>
-                          ) : null}
-                          <button className="button button-primary" type="button" disabled={solved} onClick={() => toggleSolved(item.id)}>
-                            <CheckCircle2 size={16} />
-                            {solved ? "Solved" : "Mark solved"}
-                          </button>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-                  </>
-                ) : null}
-              </Panel>
-            </div>
+            <ArchiveScreen
+              state={state}
+              itemForm={itemForm}
+              setItemForm={setItemForm}
+              addManualTask={addManualTask}
+              selectedCustomDeck={selectedCustomDeck}
+              removeTrackedItemFromDeck={removeTrackedItemFromDeck}
+              addTrackedItemToDeck={addTrackedItemToDeck}
+              completeItem={completeItem}
+              libraryMode={libraryMode}
+              setLibraryMode={setLibraryMode}
+              filters={filters}
+              setFilters={setFilters}
+              blindCategories={blindCategories}
+              filteredBlind={filteredBlind}
+              addBlindItem={addBlindItem}
+              toggleSolved={toggleSolved}
+            />
           ) : null}
 
           {view === "settings" ? (
-            <div className="screen-grid">
-              <Panel
-                title="Observatory"
-                subtitle="Quiet controls for how this world sounds, syncs, and stays with you."
-                action={<span className="section-chip">Live</span>}
-              >
-                <div className="two-column">
-                  <div className="builder-form">
-                    <label>
-                      Google Sheet URL
-                      <input
-                        type="url"
-                        placeholder="Paste a Google Sheet URL"
-                        value={state.settings.sheetUrl}
-                        onChange={(event) => updateSettings({ sheetUrl: event.target.value })}
-                      />
-                    </label>
-                    <label>
-                      Refresh interval
-                      <input
-                        type="number"
-                        min="5"
-                        max="240"
-                        value={state.settings.refreshMinutes}
-                        onChange={(event) =>
-                          updateSettings({
-                            refreshMinutes: clampNumber(event.target.value, 5, 240, 30),
-                          })
-                        }
-                      />
-                    </label>
-                    <label>
-                      Reminder cadence
-                      <input
-                        type="number"
-                        min="5"
-                        max="180"
-                        value={state.settings.reminderMinutes}
-                        onChange={(event) =>
-                          updateSettings({
-                            reminderMinutes: clampNumber(event.target.value, 5, 180, 20),
-                          })
-                        }
-                      />
-                    </label>
-                    <label>
-                      Theme
-                      <select
-                        value={state.settings.themeMode}
-                        onChange={(event) => updateSettings({ themeMode: event.target.value })}
-                      >
-                        <option value="night">Night studio</option>
-                        <option value="dawn">Dawn studio</option>
-                      </select>
-                    </label>
-                  </div>
-                  <div className="stack-list">
-                    <button className="button button-primary" type="button" onClick={() => syncFromSheet(false)}>
-                      <RefreshCw size={16} />
-                      Sync from sheet
-                    </button>
-                    <button className="button button-secondary" type="button" onClick={() => fileRef.current?.click()}>
-                      <Upload size={16} />
-                      Import CSV
-                    </button>
-                    <button className="button button-ghost" type="button" onClick={enableNotifications}>
-                      <Bell size={16} />
-                      Enable notifications
-                    </button>
-                    <label className="toggle-line">
-                      <input
-                        type="checkbox"
-                        checked={state.settings.preferAltLinks}
-                        onChange={(event) => updateSettings({ preferAltLinks: event.target.checked })}
-                      />
-                      Prefer alternate links for premium Blind cards
-                    </label>
-                    <label className="toggle-line">
-                      <input
-                        type="checkbox"
-                        checked={state.settings.soundEnabled !== false}
-                        onChange={(event) => updateSettings({ soundEnabled: event.target.checked })}
-                      />
-                      Enable ritual sounds
-                    </label>
-                    <input ref={fileRef} type="file" accept=".csv,text/csv" hidden onChange={importCsv} />
-                  </div>
-                </div>
-              </Panel>
-
-              <Panel
-                title="Echo Log"
-                subtitle="A lightweight trail of rituals, reminders, and recent moments."
-                action={<span className="section-chip">Recent</span>}
-              >
-                <div className="stack-list">
-                  {state.reminders.length ? (
-                    state.reminders.map((entry) => <div className="log-row" key={entry}>{entry}</div>)
-                  ) : (
-                    <EmptyState text="Nothing logged yet. Once you begin rituals, your recent session activity will appear here." />
-                  )}
-                </div>
-              </Panel>
-            </div>
+            <ObservatoryScreen
+              state={state}
+              updateSettings={updateSettings}
+              clampNumber={clampNumber}
+              syncFromSheet={syncFromSheet}
+              fileRef={fileRef}
+              importCsv={importCsv}
+              enableNotifications={enableNotifications}
+            />
           ) : null}
         </section>
       </main>
@@ -1231,143 +834,5 @@ function resolveDeckItems(deck, items) {
   return (deck.itemIds || []).map((itemId) => byId.get(itemId)).filter(Boolean);
 }
 
-function difficultyTone(difficulty) {
-  if (difficulty === "Hard") return "sun";
-  if (difficulty === "Medium") return "wave";
-  return "forest";
-}
-
-function deckSigil(name) {
-  const clean = String(name || "").replace(/[^a-zA-Z0-9 ]+/g, "").trim();
-  const parts = clean.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  return clean.slice(0, 2).toUpperCase() || "WP";
-}
-
-function Panel({ title, subtitle, action, children }) {
-  return (
-    <section className="panel">
-      <div className="panel-head">
-        <div>
-          <h2>{title}</h2>
-          <p>{subtitle}</p>
-        </div>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function portalStat(type) {
-  return type;
-}
-
-function MetricBadge({ label, value }) {
-  return (
-    <div className="metric-badge">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-function TrainerCardHeader({ tag, type }) {
-  return (
-    <div className="trainer-header">
-      <span>{tag}</span>
-      <span>{type}</span>
-    </div>
-  );
-}
-
-function TrainerCard({ item, badge, footer }) {
-  return (
-    <article className="trainer-card">
-      <TrainerCardHeader tag={item.category} type={badge} />
-      <div className={`trainer-art art-${difficultyTone(item.difficulty || "Medium")}`}>
-        <div className="trainer-sigil">{deckSigil(item.title)}</div>
-      </div>
-      <div className="trainer-name-row">
-        <strong>{item.title}</strong>
-        <span className="trainer-hp">{item.dueDate ? formatRelative(item.dueDate) : formatDate(item.srs.nextReview)}</span>
-      </div>
-      <div className="trainer-info">
-        <div><span>Status</span><b>{item.status}</b></div>
-        <div><span>Recall</span><b>{item.srs.interval} day interval</b></div>
-      </div>
-      {footer ? <div className="trainer-footer">{footer}</div> : null}
-    </article>
-  );
-}
-
-function FocusSessionOverlay({ deck, session, currentItem, progress, onAnswer, onClose }) {
-  const elapsed = Math.max(1, Math.round((Date.now() - session.startedAt) / 1000));
-
-  return (
-    <div className="session-overlay">
-      <div className="session-backdrop" onClick={onClose} />
-      <div className={`session-shell ${session.step === "transition" ? "is-transitioning" : ""}`}>
-        <div className="session-topbar">
-          <div>
-            <p className="eyebrow">Ritual Session</p>
-            <h2>{deck?.name || "Session"}</h2>
-          </div>
-          <button className="button button-ghost" type="button" onClick={onClose}>
-            <Archive size={16} />
-            Leave ritual
-          </button>
-        </div>
-
-        <div className="progress-caption">
-          <span>
-            Card {Math.min(session.index + 1, session.queue.length)} of {session.queue.length}
-          </span>
-          <span>{elapsed}s</span>
-        </div>
-        <div className="progress-track">
-          <span style={{ width: `${progress}%` }} />
-        </div>
-
-        {session.step === "complete" ? (
-          <div className="session-complete">
-            <p className="eyebrow">Ritual Complete</p>
-            <h3>You cleared {session.reviewed.length} cards.</h3>
-            <p>Return to the studio when you want the next deck.</p>
-            <button className="button button-primary" type="button" onClick={onClose}>
-              <Sparkles size={16} />
-              Return to studio
-            </button>
-          </div>
-        ) : currentItem ? (
-          <>
-            <div className="session-card-frame">
-              <TrainerCard item={currentItem} badge={`Card ${session.index + 1}`} />
-            </div>
-            <div className="session-actions">
-              {[1, 3, 4, 5].map((quality) => (
-                <button
-                  key={quality}
-                  type="button"
-                  className={`session-answer answer-${quality}`}
-                  onClick={() => onAnswer(quality)}
-                >
-                  <span>{qualityLabel(quality)}</span>
-                  <strong>
-                    {quality === 1 ? "Reset" : quality === 3 ? "Tough" : quality === 4 ? "Good" : "Easy"}
-                  </strong>
-                </button>
-              ))}
-            </div>
-          </>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function EmptyState({ text }) {
-  return <p className="empty-state">{text}</p>;
-}
-
+export { hydrateCustomDeck, resolveDeckItems };
 export default App;
