@@ -22,10 +22,10 @@ const ritualThemes = [
 ];
 
 const views = [
-  ["home", "Home"],
-  ["decks", "Decks"],
-  ["library", "Library"],
-  ["settings", "Settings"],
+  ["home", "Sanctuary"],
+  ["decks", "Deck Garden"],
+  ["library", "Archive"],
+  ["settings", "Observatory"],
 ];
 
 function App() {
@@ -40,6 +40,7 @@ function App() {
     category: "All categories",
     difficulty: "All difficulty",
   });
+  const [libraryMode, setLibraryMode] = useState("work");
   const [sparkles, setSparkles] = useState([]);
   const [session, setSession] = useState({
     open: false,
@@ -209,7 +210,30 @@ function App() {
   const sessionProgress = session.queue.length
     ? Math.round(((session.index + (session.step === "complete" ? 1 : 0)) / session.queue.length) * 100)
     : 0;
-  const homeCards = activeDeckItems.slice(0, 3);
+  const homeCards = activeDeckItems.slice(0, 1);
+  const portals = [
+    {
+      id: "decks",
+      title: "Deck Garden",
+      description: "Choose a ritual deck or grow a custom one.",
+      stat: `${allDecks.length} decks`,
+      tone: "sun",
+    },
+    {
+      id: "library",
+      title: "Archive",
+      description: "Shape your cards and route them into the right path.",
+      stat: `${state.items.length} cards`,
+      tone: "wave",
+    },
+    {
+      id: "settings",
+      title: "Observatory",
+      description: "Quiet controls for sync, sound, reminders, and mood.",
+      stat: "Studio controls",
+      tone: "forest",
+    },
+  ];
 
   function updateSettings(partial) {
     setState((current) => ({
@@ -648,9 +672,9 @@ function App() {
         <header className="top-shell">
           <div className="brand-block">
             <p className="eyebrow">Work Pulse Trainer</p>
-            <h1>Collect decks. Enter ritual. Clear your queue.</h1>
+            <h1>Enter a calmer world for work, memory, and training.</h1>
             <p className="brand-copy">
-              A calmer deck-based workspace inspired by premium focus apps and collectible trainer cards.
+              A collectible-card workspace where each place has a purpose, each deck has a mood, and each ritual begins with one clear next step.
             </p>
           </div>
           <div className="hero-actions">
@@ -666,7 +690,7 @@ function App() {
         <section className="hero-panel">
           <article className="hero-focus panel">
             <div className="hero-focus-copy">
-              <span className="hero-label">Recommended ritual</span>
+              <span className="hero-label">Sanctuary recommendation</span>
               <strong>{activeDeck?.name || "Today Ritual"}</strong>
               <p>{ritualHint}</p>
             </div>
@@ -709,17 +733,47 @@ function App() {
           {view === "home" ? (
             <div className="screen-grid">
               <Panel
-                title="Today"
-                subtitle="One deck, one next step, no extra noise."
-                action={<span className="section-chip">{homeCards.length} preview cards</span>}
+                title="Sanctuary"
+                subtitle="Start here, choose one path, and let everything else stay quiet."
+                action={<span className="section-chip">{activeDeck?.count || 0} cards in focus</span>}
               >
+                <div className="world-intro">
+                  <div className="world-story">
+                    <p className="world-line">
+                      Tonight&apos;s path leads through <strong>{activeDeck?.name || "Today Ritual"}</strong>. The queue is small enough to feel approachable and sharp enough to matter.
+                    </p>
+                    <div className="hero-actions">
+                      <button className="button button-primary" type="button" onClick={() => startSession(activeDeck)}>
+                        Enter ritual
+                      </button>
+                      <button className="button button-ghost" type="button" onClick={() => setView("decks")}>
+                        Explore decks
+                      </button>
+                    </div>
+                  </div>
+                  <div className="portal-grid">
+                    {portals.map((portal) => (
+                      <button
+                        key={portal.id}
+                        type="button"
+                        className={`portal-card portal-${portal.tone}`}
+                        onClick={() => setView(portal.id)}
+                      >
+                        <span>{portal.stat}</span>
+                        <strong>{portal.title}</strong>
+                        <p>{portal.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="card-row">
                   {homeCards.length ? (
                     homeCards.map((item, index) => (
                       <TrainerCard
                         key={item.id}
                         item={item}
-                        badge={`#${index + 1}`}
+                        badge={index === 0 ? "Next Card" : `#${index + 1}`}
                         footer={
                           <button className="button button-ghost" type="button" onClick={() => startSession(activeDeck)}>
                             Review in session
@@ -734,8 +788,8 @@ function App() {
               </Panel>
 
               <Panel
-                title="Momentum"
-                subtitle="Only the stats that help you decide what to do next."
+                title="Campfire"
+                subtitle="Just enough signal to keep your rhythm."
                 action={<span className="section-chip">{state.game.unlocked.length} unlocked</span>}
               >
                 <div className="metrics-strip">
@@ -760,8 +814,8 @@ function App() {
           {view === "decks" ? (
             <div className="screen-grid">
               <Panel
-                title="Decks"
-                subtitle="Smart decks help you start fast. Custom decks help you shape the work."
+                title="Deck Garden"
+                subtitle="Choose a ritual mood, then grow your own decks beside the smart ones."
                 action={<span className="section-chip">{allDecks.length} total decks</span>}
               >
                 <div className="theme-picker">
@@ -803,8 +857,8 @@ function App() {
               </Panel>
 
               <Panel
-                title="Create Custom Deck"
-                subtitle="Build a deck for one ritual, one project, or one interview sprint."
+                title="Forge A Deck"
+                subtitle="Name a path, give it a feeling, and it becomes a place you can return to."
                 action={<span className="section-chip">{customDecks.length} custom</span>}
               >
                 <div className="two-column">
@@ -853,10 +907,29 @@ function App() {
           {view === "library" ? (
             <div className="screen-grid">
               <Panel
-                title="Tracked Library"
-                subtitle="Everything you are currently training against."
+                title="Archive"
+                subtitle="Browse, refine, and route cards into the right deck."
                 action={<span className="section-chip">{state.items.length} cards</span>}
               >
+                <div className="subview-switch">
+                  <button
+                    type="button"
+                    className={`subview-chip ${libraryMode === "work" ? "is-active" : ""}`}
+                    onClick={() => setLibraryMode("work")}
+                  >
+                    Work Cards
+                  </button>
+                  <button
+                    type="button"
+                    className={`subview-chip ${libraryMode === "blind" ? "is-active" : ""}`}
+                    onClick={() => setLibraryMode("blind")}
+                  >
+                    Blind Cards
+                  </button>
+                </div>
+
+                {libraryMode === "work" ? (
+                  <>
                 <form className="quick-add" onSubmit={addManualTask}>
                   <input
                     placeholder="Task or topic"
@@ -871,55 +944,56 @@ function App() {
                   <button className="button button-primary" type="submit">
                     Add card
                   </button>
-                </form>
-                <div className="card-row">
-                  {state.items.slice(0, 16).map((item) => {
-                    const done = /done|complete/i.test(item.status);
-                    const inDeck = selectedCustomDeck?.itemIds.includes(item.id);
-                    return (
-                      <TrainerCard
-                        key={item.id}
-                        item={item}
-                        badge={item.source}
-                        footer={
-                          <div className="card-actions">
-                            {!done ? (
-                              <button className="button button-ghost" type="button" onClick={() => completeItem(item.id)}>
-                                Complete
-                              </button>
-                            ) : null}
-                            {selectedCustomDeck ? (
-                              inDeck ? (
-                                <button
-                                  className="button button-ghost"
-                                  type="button"
-                                  onClick={() => removeTrackedItemFromDeck(selectedCustomDeck.id, item.id)}
-                                >
-                                  Remove from deck
-                                </button>
-                              ) : (
-                                <button
-                                  className="button button-ghost"
-                                  type="button"
-                                  onClick={() => addTrackedItemToDeck(selectedCustomDeck.id, item.id)}
-                                >
-                                  Add to {selectedCustomDeck.name}
-                                </button>
-                              )
-                            ) : null}
-                          </div>
-                        }
-                      />
-                    );
-                  })}
-                </div>
-              </Panel>
+                    </form>
+                    <div className="card-row">
+                      {state.items.slice(0, 16).map((item) => {
+                        const done = /done|complete/i.test(item.status);
+                        const inDeck = selectedCustomDeck?.itemIds.includes(item.id);
+                        return (
+                          <TrainerCard
+                            key={item.id}
+                            item={item}
+                            badge={item.source}
+                            footer={
+                              <div className="card-actions">
+                                {!done ? (
+                                  <button className="button button-ghost" type="button" onClick={() => completeItem(item.id)}>
+                                    Complete
+                                  </button>
+                                ) : null}
+                                {selectedCustomDeck ? (
+                                  inDeck ? (
+                                    <button
+                                      className="button button-ghost"
+                                      type="button"
+                                      onClick={() => removeTrackedItemFromDeck(selectedCustomDeck.id, item.id)}
+                                    >
+                                      Remove from deck
+                                    </button>
+                                  ) : (
+                                    <button
+                                      className="button button-ghost"
+                                      type="button"
+                                      onClick={() => addTrackedItemToDeck(selectedCustomDeck.id, item.id)}
+                                    >
+                                      Add to {selectedCustomDeck.name}
+                                    </button>
+                                  )
+                                ) : null}
+                              </div>
+                            }
+                          />
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : null}
 
-              <Panel
-                title="Blind Card Library"
-                subtitle="Search, track, and route coding cards into your custom decks."
-                action={<span className="section-chip">{filteredBlind.length} matches</span>}
-              >
+                {libraryMode === "blind" ? (
+                  <>
+                <div className="panel-inline-head">
+                  <span className="section-chip">{filteredBlind.length} matches</span>
+                </div>
                 <div className="quick-add quick-add-filters">
                   <input
                     placeholder="Search prompts"
@@ -941,7 +1015,7 @@ function App() {
                     {["All difficulty", "Easy", "Medium", "Hard"].map((option) => (
                       <option key={option}>{option}</option>
                     ))}
-                  </select>
+                    </select>
                 </div>
                 <div className="card-row">
                   {filteredBlind.slice(0, 10).map((item) => {
@@ -982,6 +1056,8 @@ function App() {
                     );
                   })}
                 </div>
+                  </>
+                ) : null}
               </Panel>
             </div>
           ) : null}
@@ -989,8 +1065,8 @@ function App() {
           {view === "settings" ? (
             <div className="screen-grid">
               <Panel
-                title="Settings"
-                subtitle="Connection, reminders, sound, and ritual preferences."
+                title="Observatory"
+                subtitle="Quiet controls for how this world sounds, syncs, and stays with you."
                 action={<span className="section-chip">Live</span>}
               >
                 <div className="two-column">
@@ -1075,8 +1151,8 @@ function App() {
               </Panel>
 
               <Panel
-                title="Session Log"
-                subtitle="A lightweight history of recent activity."
+                title="Echo Log"
+                subtitle="A lightweight trail of rituals, reminders, and recent moments."
                 action={<span className="section-chip">Recent</span>}
               >
                 <div className="stack-list">
@@ -1153,6 +1229,10 @@ function Panel({ title, subtitle, action, children }) {
       {children}
     </section>
   );
+}
+
+function portalStat(type) {
+  return type;
 }
 
 function MetricBadge({ label, value }) {
