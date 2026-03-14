@@ -1,64 +1,87 @@
 # Work Pulse
 
-A lightweight web app to track work from a Google Sheet with built-in spaced repetition and reminder notifications.
+Work Pulse is a React-based work tracker for Google Sheets, spaced repetition reviews, and Blind 75 practice. This version upgrades the project from a single static script into a cleaner Vite + React app with a more polished visual design and clearer source structure.
+
+## What changed
+
+- rebuilt the UI in React with a clearer `src/` structure
+- refreshed the visual system with glass panels, better hierarchy, gradients, and motion
+- kept core product features: Google Sheet sync, CSV import, SRS reviews, progress tracking, reminders, and Blind 75 deck building
+- improved maintainability by splitting storage, import, sheet, and SRS logic into separate modules
+- fixed a few implementation issues, including local date handling for streaks and XP leveling across multiple level thresholds
 
 ## Features
 
-- Sync tasks/topics from a Google Sheet tab (`gid` aware)
-- Spaced repetition review queue (SM-2 style scheduling)
-- Gamified progress: XP, levels, streaks, coins, daily quests, achievements
-- Blind 75 Arena with category/difficulty filters and quick add-to-tracker
-- Direct per-problem links with premium badge + alternative-link preference toggle
-- Manual quick-add items
-- Browser reminder notifications + reminder history log
-- Dashboard metrics (due reviews, total, completed, overdue)
+- Google Sheets sync using the sheet `gid`
+- CSV import fallback
+- spaced repetition review queue
+- quick-add task capture
+- gamified progress with XP, levels, streaks, achievements, and coins
+- Blind 75 arena with filters, solve state, and daily deck selection
+- local browser notifications and reminder log
+- responsive layout for desktop and mobile
 
-## How to run
-
-1. Open this folder in your terminal.
-2. Start a static server:
+## Run locally
 
 ```bash
-python3 -m http.server 8080
+npm install
+npm run dev
 ```
 
-3. Open `http://localhost:8080` in your browser.
+Then open the local Vite URL shown in the terminal.
+
+To create a production build:
+
+```bash
+npm run build
+```
 
 ## Google Sheet setup
 
-To allow sync from browser, your sheet should be shareable publicly:
+To sync directly from the browser:
 
-- Open the Google Sheet
-- Click **Share**
-- Set to **Anyone with the link can view**
+1. Open your Google Sheet.
+2. Click **Share**.
+3. Set access to **Anyone with the link can view**.
+4. Copy the full sheet URL, including the `gid` if you want a specific tab.
 
-The app reads your sheet tab using `gid` via Google GViz JSON endpoint.
+The app reads the sheet through the Google GViz endpoint.
+
+## Expected columns
+
+The importer accepts flexible column names:
+
+- title: `title`, `task`, `work`, `topic`, `name`
+- category: `category`, `area`, `project`, `type`
+- status: `status`, `state`
+- due date: `due`, `deadline`, `date`
+- notes: `notes`, `description`, `details`
 
 ## Project structure
 
 ```text
 work-tracker-srs/
+  docs/
+    architecture.md
+  src/
+    data/
+      blind75.js
+    lib/
+      importers.js
+      sheets.js
+      srs.js
+      storage.js
+      utils.js
+    App.jsx
+    main.jsx
+    styles.css
   index.html
-  README.md
-  .gitignore
-  assets/
-    css/
-      styles.css
-    js/
-      app.js
+  package.json
+  vite.config.js
 ```
-
-## Expected columns (flexible)
-
-The importer recognizes common names:
-
-- Title: `title`, `task`, `work`, `topic`, `name`
-- Category: `category`, `area`, `project`, `type`
-- Status: `status`, `state`
-- Due date: `due`, `deadline`, `date`
-- Notes: `notes`, `description`, `details`
 
 ## Notes
 
-- Data is stored in local browser storage.
-- Notifications require browser permission and work best while the tab is open.
+- app data is stored in local browser storage
+- notifications work best while the tab is open
+- the storage key was intentionally bumped in this version to avoid conflicts with the old static app data shape
