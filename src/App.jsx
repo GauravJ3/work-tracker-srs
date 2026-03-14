@@ -1,4 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Archive,
+  Bell,
+  CheckCircle2,
+  ExternalLink,
+  FolderPlus,
+  Play,
+  RefreshCw,
+  Sparkles,
+  Upload,
+} from "lucide-react";
 import { blindItems } from "./data/blind75";
 import { createManualItem, mergeImportedItems, parseCsv, rowsToItems } from "./lib/importers";
 import { fetchSheetRows } from "./lib/sheets";
@@ -679,9 +690,11 @@ function App() {
           </div>
           <div className="hero-actions">
             <button className="button button-primary" type="button" onClick={() => startSession(activeDeck)}>
+              <Play size={16} />
               Start {activeDeck?.name || "ritual"}
             </button>
             <button className="button button-secondary" type="button" onClick={inspire}>
+              <Sparkles size={16} />
               Inspire me
             </button>
           </div>
@@ -744,9 +757,11 @@ function App() {
                     </p>
                     <div className="hero-actions">
                       <button className="button button-primary" type="button" onClick={() => startSession(activeDeck)}>
+                        <Play size={16} />
                         Enter ritual
                       </button>
                       <button className="button button-ghost" type="button" onClick={() => setView("decks")}>
+                        <Archive size={16} />
                         Explore decks
                       </button>
                     </div>
@@ -776,6 +791,7 @@ function App() {
                         badge={index === 0 ? "Next Card" : `#${index + 1}`}
                         footer={
                           <button className="button button-ghost" type="button" onClick={() => startSession(activeDeck)}>
+                            <Play size={16} />
                             Review in session
                           </button>
                         }
@@ -875,6 +891,7 @@ function App() {
                       onChange={(event) => setDeckForm((current) => ({ ...current, description: event.target.value }))}
                     />
                     <button className="button button-primary" type="submit">
+                      <FolderPlus size={16} />
                       Create deck
                     </button>
                   </form>
@@ -890,6 +907,7 @@ function App() {
                               <span>{hydrated.count} cards • {deck.description}</span>
                             </button>
                             <button className="button button-ghost" type="button" onClick={() => removeDeck(deck.id)}>
+                              <Archive size={16} />
                               Archive
                             </button>
                           </article>
@@ -942,6 +960,7 @@ function App() {
                     onChange={(event) => setItemForm((current) => ({ ...current, category: event.target.value }))}
                   />
                   <button className="button button-primary" type="submit">
+                    <FolderPlus size={16} />
                     Add card
                   </button>
                     </form>
@@ -958,6 +977,7 @@ function App() {
                               <div className="card-actions">
                                 {!done ? (
                                   <button className="button button-ghost" type="button" onClick={() => completeItem(item.id)}>
+                                    <CheckCircle2 size={16} />
                                     Complete
                                   </button>
                                 ) : null}
@@ -976,6 +996,7 @@ function App() {
                                       type="button"
                                       onClick={() => addTrackedItemToDeck(selectedCustomDeck.id, item.id)}
                                     >
+                                      <FolderPlus size={16} />
                                       Add to {selectedCustomDeck.name}
                                     </button>
                                   )
@@ -1032,6 +1053,7 @@ function App() {
                           <strong>
                             <a href={href} target="_blank" rel="noreferrer">
                               {item.title}
+                              <ExternalLink size={14} className="inline-icon" />
                             </a>
                           </strong>
                           <span className="trainer-hp">{solved ? "Solved" : tracked ? "Tracked" : "Wild"}</span>
@@ -1041,14 +1063,17 @@ function App() {
                         </div>
                         <div className="card-actions">
                           <button className="button button-ghost" type="button" onClick={() => addBlindItem(item)}>
+                            <FolderPlus size={16} />
                             {tracked ? "Track again" : "Track"}
                           </button>
                           {selectedCustomDeck ? (
                             <button className="button button-ghost" type="button" onClick={() => addBlindItem(item, selectedCustomDeck.id)}>
+                              <FolderPlus size={16} />
                               Add to deck
                             </button>
                           ) : null}
                           <button className="button button-primary" type="button" disabled={solved} onClick={() => toggleSolved(item.id)}>
+                            <CheckCircle2 size={16} />
                             {solved ? "Solved" : "Mark solved"}
                           </button>
                         </div>
@@ -1121,12 +1146,15 @@ function App() {
                   </div>
                   <div className="stack-list">
                     <button className="button button-primary" type="button" onClick={() => syncFromSheet(false)}>
+                      <RefreshCw size={16} />
                       Sync from sheet
                     </button>
                     <button className="button button-secondary" type="button" onClick={() => fileRef.current?.click()}>
+                      <Upload size={16} />
                       Import CSV
                     </button>
                     <button className="button button-ghost" type="button" onClick={enableNotifications}>
+                      <Bell size={16} />
                       Enable notifications
                     </button>
                     <label className="toggle-line">
@@ -1286,6 +1314,7 @@ function FocusSessionOverlay({ deck, session, currentItem, progress, onAnswer, o
             <h2>{deck?.name || "Session"}</h2>
           </div>
           <button className="button button-ghost" type="button" onClick={onClose}>
+            <Archive size={16} />
             Leave ritual
           </button>
         </div>
@@ -1306,6 +1335,7 @@ function FocusSessionOverlay({ deck, session, currentItem, progress, onAnswer, o
             <h3>You cleared {session.reviewed.length} cards.</h3>
             <p>Return to the studio when you want the next deck.</p>
             <button className="button button-primary" type="button" onClick={onClose}>
+              <Sparkles size={16} />
               Return to studio
             </button>
           </div>
