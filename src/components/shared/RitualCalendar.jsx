@@ -65,12 +65,18 @@ function RitualCalendar({ history = {}, streak = 0 }) {
         <strong>Ritual calendar</strong>
         <span>{ritualDays} active days • {streak} day streak</span>
       </div>
-      <div className="calendar-months" aria-hidden="true">
-        {monthMarkers.map((marker) => (
-          <span key={`${marker.index}-${marker.label}`}>{marker.label}</span>
-        ))}
-      </div>
       <div className="calendar-scroll">
+        <div className="calendar-months" aria-hidden="true">
+          {monthMarkers.map((marker) => (
+            <span
+              key={`${marker.index}-${marker.label}`}
+              className={marker.label ? "has-label" : ""}
+              style={{ gridColumn: marker.index + 1 }}
+            >
+              {marker.label}
+            </span>
+          ))}
+        </div>
         <div className="calendar-grid" role="grid" aria-label="Ritual activity calendar">
           {weeks.map((week, weekIndex) => (
             <div className="calendar-week" key={`week-${weekIndex}`}>

@@ -1206,24 +1206,31 @@ a {
 
 .calendar-months {
   display: grid;
-  grid-template-columns: repeat(24, minmax(0, 1fr));
+  grid-template-columns: repeat(24, 0.84rem);
   gap: 0.28rem;
   margin-top: 0.9rem;
-  min-width: 520px;
+  width: max-content;
+  min-width: max-content;
 }
 
 .calendar-months span {
   font-size: var(--type-micro);
   color: var(--text-tertiary);
   min-height: 1rem;
+  width: max-content;
+}
+
+.calendar-months .has-label {
+  justify-self: start;
 }
 
 .calendar-grid {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: max-content;
+  grid-auto-columns: 0.84rem;
   gap: 0.28rem;
-  min-width: 520px;
+  width: max-content;
+  min-width: max-content;
 }
 
 .calendar-week {
