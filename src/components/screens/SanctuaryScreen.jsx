@@ -2,6 +2,7 @@ import { Archive, Play } from "lucide-react";
 import Panel from "../layout/Panel";
 import MetricBadge from "../shared/MetricBadge";
 import EmptyState from "../shared/EmptyState";
+import { getDeckIcon, getScreenIcon } from "../shared/worldIcons";
 import TrainerCard from "../cards/TrainerCard";
 
 function SanctuaryScreen({
@@ -17,11 +18,15 @@ function SanctuaryScreen({
   ritualHint,
   focusScore,
 }) {
+  const SanctuaryIcon = getScreenIcon("Sanctuary");
+  const ActiveDeckIcon = getDeckIcon(activeDeck?.name);
+
   return (
     <div className="screen-grid">
       <Panel
         title="Sanctuary"
         subtitle="Start here, choose one path, and let everything else stay quiet."
+        icon={SanctuaryIcon}
         action={<span className="section-chip">{activeDeck?.count || 0} cards in focus</span>}
       >
         <div className="world-intro">
@@ -31,6 +36,13 @@ function SanctuaryScreen({
               small enough to feel approachable and sharp enough to matter.
             </p>
             <p className="world-line">{ritualHint}</p>
+            <div className="active-deck-chip">
+              <span className="panel-icon panel-icon-inline" aria-hidden="true">
+                <ActiveDeckIcon size={15} />
+              </span>
+              <strong>{activeDeck?.name || "Today Ritual"}</strong>
+              <span>{activeDeck?.description || "Start with the cards due now."}</span>
+            </div>
             <div className="hero-actions">
               <button className="button button-primary" type="button" onClick={() => startSession(activeDeck)}>
                 <Play size={16} />
@@ -44,16 +56,26 @@ function SanctuaryScreen({
           </div>
           <div className="portal-grid">
             {portals.map((portal) => (
-              <button
-                key={portal.id}
-                type="button"
-                className={`portal-card portal-${portal.tone}`}
-                onClick={() => setView(portal.id)}
-              >
-                <span>{portal.stat}</span>
-                <strong>{portal.title}</strong>
-                <p>{portal.description}</p>
-              </button>
+              (() => {
+                const PortalIcon = getScreenIcon(portal.title);
+                return (
+                  <button
+                    key={portal.id}
+                    type="button"
+                    className={`portal-card portal-${portal.tone}`}
+                    onClick={() => setView(portal.id)}
+                  >
+                    <span className="portal-meta">
+                      <span className="portal-icon" aria-hidden="true">
+                        <PortalIcon size={14} />
+                      </span>
+                      {portal.stat}
+                    </span>
+                    <strong>{portal.title}</strong>
+                    <p>{portal.description}</p>
+                  </button>
+                );
+              })()
             ))}
           </div>
         </div>

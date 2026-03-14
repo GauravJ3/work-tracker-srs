@@ -398,6 +398,9 @@ a {
   color: var(--text-primary);
   padding: 0.8rem 1rem;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .view-chip.is-active {
@@ -439,6 +442,17 @@ a {
   margin-bottom: 1rem;
 }
 
+.panel-heading {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.panel-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
 .panel-head h2,
 .session-topbar h2 {
   margin: 0;
@@ -449,6 +463,24 @@ a {
 .panel-head p {
   margin: 0.4rem 0 0;
   max-width: 54ch;
+}
+
+.panel-icon {
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--accent-gold-soft);
+  flex: 0 0 auto;
+}
+
+.panel-icon-inline {
+  width: 1.8rem;
+  height: 1.8rem;
 }
 
 .section-chip {
@@ -477,6 +509,35 @@ a {
   padding: 1rem;
 }
 
+.active-deck-chip {
+  display: grid;
+  grid-template-columns: auto minmax(0, auto);
+  gap: 0.35rem 0.7rem;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 1rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 18px;
+  border: 1px solid var(--border-default);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.active-deck-chip strong {
+  color: var(--text-primary);
+}
+
+.active-deck-chip span:last-child {
+  grid-column: 2;
+  color: var(--text-secondary);
+  font-size: var(--type-body-sm);
+  line-height: 1.5;
+}
+
+.active-deck-chip-quiet {
+  margin: 0 0 1rem;
+}
+
 .world-line {
   margin: 0 0 1rem;
   color: var(--text-secondary);
@@ -502,6 +563,23 @@ a {
 .portal-card span,
 .subview-chip {
   color: var(--text-secondary);
+}
+
+.portal-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.portal-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
 }
 
 .portal-card strong {
@@ -622,6 +700,22 @@ a {
   color: rgba(35, 24, 6, 0.46);
 }
 
+.trainer-art-icon {
+  position: absolute;
+  right: 0.65rem;
+  bottom: 0.65rem;
+  width: 1.9rem;
+  height: 1.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(255, 248, 228, 0.72);
+  border: 1px solid rgba(64, 48, 16, 0.2);
+  color: rgba(36, 26, 9, 0.74);
+  backdrop-filter: blur(4px);
+}
+
 .trainer-name-row {
   display: flex;
   justify-content: space-between;
@@ -635,6 +729,18 @@ a {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+.trainer-name-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(226, 184, 91, 0.14);
+  color: rgba(82, 55, 9, 0.82);
+  flex: 0 0 auto;
 }
 
 .trainer-hp {

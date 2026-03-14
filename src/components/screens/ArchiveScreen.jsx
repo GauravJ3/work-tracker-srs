@@ -1,5 +1,6 @@
 import { CheckCircle2, ExternalLink, FolderPlus } from "lucide-react";
 import Panel from "../layout/Panel";
+import { getDeckIcon, getScreenIcon } from "../shared/worldIcons";
 import TrainerCard from "../cards/TrainerCard";
 import TrainerCardHeader from "../cards/TrainerCardHeader";
 import { deckSigil, difficultyTone } from "../cards/TrainerCard";
@@ -22,13 +23,26 @@ function ArchiveScreen({
   addBlindItem,
   toggleSolved,
 }) {
+  const ArchiveIcon = getScreenIcon("Archive");
+  const SelectedDeckIcon = getDeckIcon(selectedCustomDeck?.name);
+
   return (
     <div className="screen-grid">
       <Panel
         title="Archive"
         subtitle="Browse, refine, and route cards into the right deck."
+        icon={ArchiveIcon}
         action={<span className="section-chip">{state.items.length} cards</span>}
       >
+        {selectedCustomDeck ? (
+          <div className="active-deck-chip active-deck-chip-quiet">
+            <span className="panel-icon panel-icon-inline" aria-hidden="true">
+              <SelectedDeckIcon size={15} />
+            </span>
+            <strong>{selectedCustomDeck.name}</strong>
+            <span>New cards route here when you choose Add to deck.</span>
+          </div>
+        ) : null}
         <div className="subview-switch">
           <button type="button" className={`subview-chip ${libraryMode === "work" ? "is-active" : ""}`} onClick={() => setLibraryMode("work")}>
             Work Cards

@@ -7,6 +7,7 @@ import ObservatoryScreen from "./components/screens/ObservatoryScreen";
 import RitualChamber from "./components/session/RitualChamber";
 import MetricBadge from "./components/shared/MetricBadge";
 import TrainerCardHeader from "./components/cards/TrainerCardHeader";
+import { getDeckIcon, getScreenIcon } from "./components/shared/worldIcons";
 import { deckSigil } from "./components/cards/TrainerCard";
 import { blindItems } from "./data/blind75";
 import { createManualItem, mergeImportedItems, parseCsv, rowsToItems } from "./lib/importers";
@@ -229,6 +230,7 @@ function App() {
       tone: "forest",
     },
   ];
+  const HeroDeckIcon = getDeckIcon(activeDeck?.name);
 
   function updateSettings(partial) {
     setState((current) => ({
@@ -703,9 +705,17 @@ function App() {
             <TrainerCardHeader tag="Active Deck" type={activeDeck?.kind === "custom" ? "Custom" : "Smart"} />
             <div className={`trainer-art art-${activeDeck?.tone || "sun"}`}>
               <div className="trainer-sigil">{deckSigil(activeDeck?.name || "TR")}</div>
+              <span className="trainer-art-icon" aria-hidden="true">
+                <HeroDeckIcon size={18} />
+              </span>
             </div>
             <div className="trainer-name-row">
-              <strong>{activeDeck?.name || "Today Ritual"}</strong>
+              <strong>
+                <span className="trainer-name-icon" aria-hidden="true">
+                  <HeroDeckIcon size={16} />
+                </span>
+                {activeDeck?.name || "Today Ritual"}
+              </strong>
               <span className="trainer-hp">{activeDeck?.count || 0} cards</span>
             </div>
             <div className="trainer-info">
@@ -717,14 +727,20 @@ function App() {
 
         <nav className="view-nav" aria-label="Workspace views">
           {views.map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              className={`view-chip ${view === id ? "is-active" : ""}`}
-              onClick={() => setView(id)}
-            >
-              {label}
-            </button>
+            (() => {
+              const ViewIcon = getScreenIcon(label);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className={`view-chip ${view === id ? "is-active" : ""}`}
+                  onClick={() => setView(id)}
+                >
+                  <ViewIcon size={15} />
+                  {label}
+                </button>
+              );
+            })()
           ))}
         </nav>
 

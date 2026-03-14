@@ -1,6 +1,7 @@
 import { Bell, RefreshCw, Upload } from "lucide-react";
 import Panel from "../layout/Panel";
 import EmptyState from "../shared/EmptyState";
+import { getScreenIcon } from "../shared/worldIcons";
 
 function ObservatoryScreen({
   state,
@@ -11,11 +12,14 @@ function ObservatoryScreen({
   importCsv,
   enableNotifications,
 }) {
+  const ObservatoryIcon = getScreenIcon("Observatory");
+
   return (
     <div className="screen-grid">
       <Panel
         title="Observatory"
         subtitle="Quiet controls for how this world sounds, syncs, and stays with you."
+        icon={ObservatoryIcon}
         action={<span className="section-chip">Live</span>}
       >
         <div className="two-column">

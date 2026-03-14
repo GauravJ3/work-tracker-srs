@@ -1,6 +1,7 @@
 import { Archive, FolderPlus } from "lucide-react";
 import Panel from "../layout/Panel";
 import EmptyState from "../shared/EmptyState";
+import { getDeckIcon, getScreenIcon } from "../shared/worldIcons";
 import TrainerCardHeader from "../cards/TrainerCardHeader";
 import { deckSigil } from "../cards/TrainerCard";
 
@@ -20,11 +21,14 @@ function DeckGardenScreen({
   selectedCustomDeck,
   removeDeck,
 }) {
+  const DeckGardenIcon = getScreenIcon("Deck Garden");
+
   return (
     <div className="screen-grid">
       <Panel
         title="Deck Garden"
         subtitle="Choose a ritual mood, then grow your own decks beside the smart ones."
+        icon={DeckGardenIcon}
         action={<span className="section-chip">{allDecks.length} total decks</span>}
       >
         <div className="theme-picker">
@@ -42,25 +46,38 @@ function DeckGardenScreen({
         </div>
         <div className="card-row">
           {allDecks.map((deck) => (
-            <button
-              key={deck.id}
-              type="button"
-              className={`trainer-card trainer-card-button ${activeDeckId === deck.id ? "is-selected" : ""}`}
-              onClick={() => selectDeck(deck.id)}
-            >
-              <TrainerCardHeader tag={deck.kind === "custom" ? "Custom Deck" : "Smart Deck"} type={deck.count} />
-              <div className={`trainer-art art-${deck.tone || "sun"}`}>
-                <div className="trainer-sigil">{deckSigil(deck.name)}</div>
-              </div>
-              <div className="trainer-name-row">
-                <strong>{deck.name}</strong>
-                <span className="trainer-hp">{deck.count} cards</span>
-              </div>
-              <div className="trainer-info">
-                <div><span>Feel</span><b>{deck.description}</b></div>
-                <div><span>Play</span><b>{deck.copy}</b></div>
-              </div>
-            </button>
+            (() => {
+              const DeckIcon = getDeckIcon(deck.name);
+              return (
+                <button
+                  key={deck.id}
+                  type="button"
+                  className={`trainer-card trainer-card-button ${activeDeckId === deck.id ? "is-selected" : ""}`}
+                  onClick={() => selectDeck(deck.id)}
+                >
+                  <TrainerCardHeader tag={deck.kind === "custom" ? "Custom Deck" : "Smart Deck"} type={deck.count} />
+                  <div className={`trainer-art art-${deck.tone || "sun"}`}>
+                    <div className="trainer-sigil">{deckSigil(deck.name)}</div>
+                    <span className="trainer-art-icon" aria-hidden="true">
+                      <DeckIcon size={18} />
+                    </span>
+                  </div>
+                  <div className="trainer-name-row">
+                    <strong>
+                      <span className="trainer-name-icon" aria-hidden="true">
+                        <DeckIcon size={16} />
+                      </span>
+                      {deck.name}
+                    </strong>
+                    <span className="trainer-hp">{deck.count} cards</span>
+                  </div>
+                  <div className="trainer-info">
+                    <div><span>Feel</span><b>{deck.description}</b></div>
+                    <div><span>Play</span><b>{deck.copy}</b></div>
+                  </div>
+                </button>
+              );
+            })()
           ))}
         </div>
       </Panel>
