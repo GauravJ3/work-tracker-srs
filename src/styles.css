@@ -1160,6 +1160,27 @@ a {
   font-size: var(--type-body-sm);
 }
 
+.onboarding-card {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 1rem;
+  padding: 0.95rem 1rem;
+  border-radius: 20px;
+  border: 1px solid var(--border-default);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.024));
+}
+
+.onboarding-card strong {
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.onboarding-card span {
+  color: var(--text-secondary);
+  line-height: 1.55;
+  font-size: var(--type-body-sm);
+}
+
 .binder-grid .trainer-card,
 .binder-grid .trainer-card-blind {
   background:

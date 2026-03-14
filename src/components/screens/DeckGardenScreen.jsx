@@ -24,6 +24,9 @@ function DeckGardenScreen({
   deckCardForm,
   setDeckCardForm,
   addCardToDeck,
+  deckEditForm,
+  setDeckEditForm,
+  updateSelectedDeckDetails,
   selectedCustomDeckItems,
   beginEditDeckCard,
   removeCardFromSelectedDeck,
@@ -157,6 +160,58 @@ function DeckGardenScreen({
             )}
           </div>
         </div>
+      </Panel>
+
+      <Panel
+        title="Deck Settings"
+        subtitle="A selected custom deck should be easy to rename, tune, and favorite."
+        action={<span className="section-chip">{selectedCustomDeck ? "Selected" : "No custom deck selected"}</span>}
+      >
+        {selectedCustomDeck ? (
+          <form className="builder-form" onSubmit={updateSelectedDeckDetails}>
+            <label>
+              Deck name
+              <input
+                value={deckEditForm.name}
+                onChange={(event) => setDeckEditForm((current) => ({ ...current, name: event.target.value }))}
+              />
+            </label>
+            <label>
+              Mood
+              <select
+                value={deckEditForm.tone}
+                onChange={(event) => setDeckEditForm((current) => ({ ...current, tone: event.target.value }))}
+              >
+                {ritualThemes.map((theme) => (
+                  <option key={theme.id} value={theme.id}>
+                    {theme.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Deck purpose
+              <textarea
+                rows="4"
+                value={deckEditForm.description}
+                onChange={(event) => setDeckEditForm((current) => ({ ...current, description: event.target.value }))}
+              />
+            </label>
+            <label className="toggle-line">
+              <input
+                type="checkbox"
+                checked={deckEditForm.favorite}
+                onChange={(event) => setDeckEditForm((current) => ({ ...current, favorite: event.target.checked }))}
+              />
+              Favorite this deck
+            </label>
+            <button className="button button-primary" type="submit">
+              Save deck settings
+            </button>
+          </form>
+        ) : (
+          <EmptyState text="Select a custom deck from above to edit its identity and settings." />
+        )}
       </Panel>
 
       <Panel

@@ -43,6 +43,7 @@ function App() {
   const [ritualHint, setRitualHint] = useState("Start with one deck and let the rest of the workspace stay quiet.");
   const [itemForm, setItemForm] = useState({ title: "", category: "" });
   const [deckForm, setDeckForm] = useState({ name: "", description: "", tone: "forest" });
+  const [deckEditForm, setDeckEditForm] = useState({ name: "", description: "", tone: "forest", favorite: false });
   const [deckCardForm, setDeckCardForm] = useState({ id: "", title: "", category: "", notes: "" });
   const [filters, setFilters] = useState({
     search: "",
@@ -261,6 +262,19 @@ function App() {
     () => allDecks.find((deck) => deck.id !== session.deckId && deck.count > 0) || recommendedDeck,
     [allDecks, recommendedDeck, session.deckId],
   );
+
+  useEffect(() => {
+    if (!selectedCustomDeck) {
+      setDeckEditForm({ name: "", description: "", tone: "forest", favorite: false });
+      return;
+    }
+    setDeckEditForm({
+      name: selectedCustomDeck.name || "",
+      description: selectedCustomDeck.description || "",
+      tone: selectedCustomDeck.tone || "forest",
+      favorite: Boolean(selectedCustomDeck.favorite),
+    });
+  }, [selectedCustomDeck]);
 
   function updateSettings(partial) {
     setState((current) => ({
@@ -529,6 +543,7 @@ function App() {
       mood: deckMoodCopy[deckForm.tone || theme.id] || "Personal ritual lane",
       createdAt: new Date().toISOString(),
       lastPlayedAt: "",
+      favorite: false,
     };
     setState((current) => ({
       ...current,
@@ -563,6 +578,27 @@ function App() {
     const deck = allDecks.find((entry) => entry.id === deckId);
     if (deck?.kind === "custom") updateSettings({ selectedCustomDeckId: deck.id });
     setRitualHint(deck ? deck.copy : "Choose a deck and begin.");
+  }
+
+  function updateSelectedDeckDetails(event) {
+    event.preventDefault();
+    if (!selectedCustomDeck) return;
+    setState((current) => ({
+      ...current,
+      decks: current.decks.map((deck) =>
+        deck.id === selectedCustomDeck.id
+          ? {
+              ...deck,
+              name: deckEditForm.name.trim() || deck.name,
+              description: deckEditForm.description.trim() || "A custom trainer deck.",
+              tone: deckEditForm.tone,
+              mood: deckMoodCopy[deckEditForm.tone] || deck.mood,
+              favorite: deckEditForm.favorite,
+            }
+          : deck,
+      ),
+    }));
+    setStatus("Deck updated.");
   }
 
   function addTrackedItemToDeck(deckId, itemId) {
@@ -966,6 +1002,7 @@ function App() {
               levelProgress={levelProgress}
               ritualHint={ritualHint}
               focusScore={focusScore}
+              customDeckCount={customDecks.length}
             />
           ) : null}
 
@@ -988,6 +1025,9 @@ function App() {
               deckCardForm={deckCardForm}
               setDeckCardForm={setDeckCardForm}
               addCardToDeck={addCardToDeck}
+              deckEditForm={deckEditForm}
+              setDeckEditForm={setDeckEditForm}
+              updateSelectedDeckDetails={updateSelectedDeckDetails}
               selectedCustomDeckItems={selectedCustomDeckItems}
               beginEditDeckCard={beginEditDeckCard}
               removeCardFromSelectedDeck={removeCardFromSelectedDeck}

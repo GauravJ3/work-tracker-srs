@@ -19,6 +19,7 @@ function SanctuaryScreen({
   levelProgress,
   ritualHint,
   focusScore,
+  customDeckCount,
 }) {
   const SanctuaryIcon = getScreenIcon("Sanctuary");
   const SanctuaryMedia = getSectionAsset("Sanctuary");
@@ -58,6 +59,14 @@ function SanctuaryScreen({
                 Explore decks
               </button>
             </div>
+            {state.game.totalReviews < 5 ? (
+              <div className="onboarding-card">
+                <strong>Getting Started</strong>
+                <span>{state.items.length ? "Starter cards are ready." : "Add your first cards."}</span>
+                <span>{customDeckCount ? `${customDeckCount} custom deck${customDeckCount === 1 ? "" : "s"} created.` : "Create one custom deck in Deck Garden."}</span>
+                <span>{state.game.totalReviews ? `${state.game.totalReviews} review${state.game.totalReviews === 1 ? "" : "s"} completed.` : "Complete your first ritual to wake up the studio."}</span>
+              </div>
+            ) : null}
           </div>
           <div className="portal-grid">
             {portals.map((portal) => (
