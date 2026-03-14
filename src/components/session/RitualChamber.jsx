@@ -42,7 +42,7 @@ function RitualChamber({ deck, session, currentItem, progress, onAnswer, onClose
         ) : currentItem ? (
           <>
             <div className="session-card-frame">
-              <TrainerCard item={currentItem} badge={`Card ${session.index + 1}`} />
+              <TrainerCard item={currentItem} badge={`Card ${session.index + 1}`} variant="session" />
             </div>
             <div className="session-actions">
               {[1, 3, 4, 5].map((quality) => (

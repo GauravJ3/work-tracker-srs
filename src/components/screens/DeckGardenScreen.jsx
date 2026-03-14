@@ -55,7 +55,7 @@ function DeckGardenScreen({
                 <button
                   key={deck.id}
                   type="button"
-                  className={`trainer-card trainer-card-button ${activeDeckId === deck.id ? "is-selected" : ""}`}
+                  className={`trainer-card trainer-card-deck trainer-card-button ${activeDeckId === deck.id ? "is-selected" : ""}`}
                   onClick={() => selectDeck(deck.id)}
                 >
                   <TrainerCardHeader tag={deck.kind === "custom" ? "Custom Deck" : "Smart Deck"} type={deck.count} />

@@ -13,25 +13,45 @@ function deckSigil(name) {
   return clean.slice(0, 2).toUpperCase() || "WP";
 }
 
-function TrainerCard({ item, badge, footer }) {
+function variantTone(variant, item) {
+  if (variant === "session") return "rare";
+  if (variant === "deck") return item.tone || "sun";
+  if (variant === "blind") return difficultyTone(item.difficulty || "Medium");
+  return difficultyTone(item.difficulty || "Medium");
+}
+
+function TrainerCard({ item, badge, footer, variant = "work", className = "" }) {
+  const tone = variantTone(variant, item);
+  const dueText = item.dueDate ? item.dueDate : item.srs?.nextReview || "-";
+  const statusLabel =
+    variant === "deck"
+      ? item.description || item.copy || "Ready for a clean focused run."
+      : item.status;
+  const recallLabel =
+    variant === "blind"
+      ? item.difficulty || "Medium"
+      : variant === "session"
+        ? "Single-card ritual focus"
+        : `${item.srs?.interval || 0} day interval`;
+
   return (
-    <article className="trainer-card">
+    <article className={`trainer-card trainer-card-${variant} ${className}`.trim()}>
       <TrainerCardHeader tag={item.category} type={badge} />
-      <div className={`trainer-art art-${difficultyTone(item.difficulty || "Medium")}`}>
+      <div className={`trainer-art art-${tone}`}>
         <div className="trainer-sigil">{deckSigil(item.title)}</div>
       </div>
       <div className="trainer-name-row">
         <strong>{item.title}</strong>
-        <span className="trainer-hp">{item.dueDate ? item.dueDate : item.srs?.nextReview || "-"}</span>
+        <span className="trainer-hp">{dueText}</span>
       </div>
       <div className="trainer-info">
         <div>
-          <span>Status</span>
-          <b>{item.status}</b>
+          <span>{variant === "deck" ? "Mood" : "Status"}</span>
+          <b>{statusLabel}</b>
         </div>
         <div>
-          <span>Recall</span>
-          <b>{item.srs?.interval || 0} day interval</b>
+          <span>{variant === "blind" ? "Challenge" : variant === "session" ? "Mode" : "Recall"}</span>
+          <b>{recallLabel}</b>
         </div>
       </div>
       {footer ? <div className="trainer-footer">{footer}</div> : null}

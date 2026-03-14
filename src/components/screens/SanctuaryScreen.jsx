@@ -93,6 +93,7 @@ function SanctuaryScreen({
                   ...item,
                   dueDate: item.dueDate || item.srs?.nextReview || "-",
                 }}
+                variant="work"
                 badge={index === 0 ? "Next Card" : `#${index + 1}`}
                 footer={
                   <button className="button button-ghost" type="button" onClick={() => startSession(activeDeck)}>

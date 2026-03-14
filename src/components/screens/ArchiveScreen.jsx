@@ -84,6 +84,7 @@ function ArchiveScreen({
                       ...item,
                       dueDate: item.dueDate || item.srs?.nextReview || "-",
                     }}
+                    variant="work"
                     badge={item.source}
                     footer={
                       <div className="card-actions">
@@ -156,7 +157,7 @@ function ArchiveScreen({
                 const solved = state.game.solvedBlind.includes(item.id);
                 const href = item.premium && state.settings.preferAltLinks ? item.alt : item.link;
                 return (
-                  <article className="trainer-card" key={item.id}>
+                  <article className="trainer-card trainer-card-blind" key={item.id}>
                     <TrainerCardHeader tag={item.category} type={item.difficulty} />
                     <div className={`trainer-art art-${difficultyTone(item.difficulty)}`}>
                       <div className="trainer-sigil">{deckSigil(item.title)}</div>

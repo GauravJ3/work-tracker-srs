@@ -701,7 +701,7 @@ function App() {
               <MetricBadge label="Streak" value={`${state.game.streak}d`} />
             </div>
           </article>
-          <article className="hero-card-preview trainer-card trainer-card-feature">
+          <article className="hero-card-preview trainer-card trainer-card-deck trainer-card-feature">
             <TrainerCardHeader tag="Active Deck" type={activeDeck?.kind === "custom" ? "Custom" : "Smart"} />
             <div className={`trainer-art art-${activeDeck?.tone || "sun"}`}>
               <div className="trainer-sigil">{deckSigil(activeDeck?.name || "TR")}</div>
