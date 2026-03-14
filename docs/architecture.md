@@ -18,6 +18,17 @@ Each tracked item keeps:
 - task details: `title`, `category`, `status`, `notes`, `dueDate`
 - spaced repetition state: `repetitions`, `interval`, `ease`, `lastReviewed`, `nextReview`
 
+Decks now keep:
+
+- identity: `id`, `name`, `description`, `tone`
+- membership: `itemIds`
+- metadata: `createdAt`
+
+The app exposes two deck families:
+
+- smart decks generated from current item state
+- custom decks created and curated by the user
+
 ## Notable fixes in this version
 
 - moved from a single large script to a React/Vite app with a clearer source layout
@@ -25,3 +36,4 @@ Each tracked item keeps:
 - corrected day tracking to use local calendar dates instead of UTC slicing
 - improved level-up handling so large XP gains can cross multiple levels safely
 - made imported row/header parsing more explicit and easier to maintain
+- redefined the interface around guided ritual sessions and multi-deck workflows

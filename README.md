@@ -1,12 +1,14 @@
 # Work Pulse
 
-Work Pulse is a React-based work tracker for Google Sheets, spaced repetition reviews, and Blind 75 practice. This version upgrades the project from a single static script into a cleaner Vite + React app with a more polished visual design and clearer source structure.
+Work Pulse is a React-based work tracker for Google Sheets, spaced repetition reviews, and Blind 75 practice. The current version is designed as a premium focus trainer with deck-based study flows, immersive review rituals, and a smoother, more intentional interface.
 
 ## What changed
 
 - rebuilt the UI in React with a clearer `src/` structure
-- refreshed the visual system with glass panels, better hierarchy, gradients, and motion
+- reshaped the app into a deck-first focus trainer with immersive review sessions
+- refreshed the visual system with stronger hierarchy, cinematic panels, gradients, and smoother motion
 - kept core product features: Google Sheet sync, CSV import, SRS reviews, progress tracking, reminders, and Blind 75 deck building
+- added multiple deck types, including smart decks and custom decks you can curate yourself
 - improved maintainability by splitting storage, import, sheet, and SRS logic into separate modules
 - fixed a few implementation issues, including local date handling for streaks and XP leveling across multiple level thresholds
 
@@ -16,8 +18,11 @@ Work Pulse is a React-based work tracker for Google Sheets, spaced repetition re
 - CSV import fallback
 - spaced repetition review queue
 - quick-add task capture
+- smart ritual decks for due work, recovery, flow, and Blind practice
+- custom deck creation so users can build their own review stacks
+- immersive focus session overlay for one-card-at-a-time review
 - gamified progress with XP, levels, streaks, achievements, and coins
-- Blind 75 arena with filters, solve state, and daily deck selection
+- Blind 75 library with filters, solve state, and routing into custom decks
 - local browser notifications and reminder log
 - responsive layout for desktop and mobile
 

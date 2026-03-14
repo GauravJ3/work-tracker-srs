@@ -12,7 +12,12 @@ export const defaultState = {
     notifications: false,
     preferAltLinks: false,
     themeMode: "night",
+    ritualTone: "ember",
+    soundEnabled: true,
+    activeDeckId: "system:due",
+    selectedCustomDeckId: "",
   },
+  decks: [],
   game: {
     xp: 0,
     level: 1,
@@ -45,6 +50,7 @@ export function loadState() {
       ...defaultState,
       ...parsed,
       settings: { ...defaultState.settings, ...(parsed.settings || {}) },
+      decks: Array.isArray(parsed.decks) ? parsed.decks : [],
       game: {
         ...defaultState.game,
         ...(parsed.game || {}),

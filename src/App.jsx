@@ -15,18 +15,51 @@ const achievementMap = {
   inbox_zero: "Cleared every due review",
 };
 
+const ritualTones = [
+  {
+    id: "ember",
+    name: "Ember Hall",
+    accent: "gold",
+    copy: "Warm light, decisive pace, finish the queue cleanly.",
+  },
+  {
+    id: "aurora",
+    name: "Aurora Deck",
+    accent: "mint",
+    copy: "Breathy neon focus with softer momentum and smoother transitions.",
+  },
+  {
+    id: "atlas",
+    name: "Atlas Grid",
+    accent: "blue",
+    copy: "Structured, analytical, and built for long study sessions.",
+  },
+];
+
 function App() {
   const [state, setState] = useState(() => ensureDailyState(loadState()));
-  const [status, setStatus] = useState("Ready when you are.");
-  const [challenge, setChallenge] = useState("Roll a challenge to get a fresh focus sprint.");
-  const [form, setForm] = useState({ title: "", category: "" });
+  const [status, setStatus] = useState("Focus studio is ready.");
+  const [ritualLine, setRitualLine] = useState("Choose a deck and begin a smooth review ritual.");
+  const [itemForm, setItemForm] = useState({ title: "", category: "" });
+  const [deckForm, setDeckForm] = useState({ name: "", description: "" });
   const [filters, setFilters] = useState({
     search: "",
     category: "All categories",
     difficulty: "All difficulty",
   });
   const [sparkles, setSparkles] = useState([]);
+  const [session, setSession] = useState({
+    open: false,
+    deckId: "",
+    queue: [],
+    index: 0,
+    step: "idle",
+    reviewed: [],
+    lastQuality: null,
+    startedAt: 0,
+  });
   const fileRef = useRef(null);
+  const audioRef = useRef(null);
 
   useEffect(() => {
     saveState(state);
@@ -58,40 +91,44 @@ function App() {
       const due = state.items.filter(isDue);
       if (!due.length) return;
       const next = due[0];
-      pushReminder(`Review ${next.title}`, `${due.length} item${due.length > 1 ? "s are" : " is"} waiting.`);
+      pushReminder(`Ritual ready: ${next.title}`, `${due.length} cards are waiting in your queue.`);
     }, minutes * 60 * 1000);
     return () => window.clearInterval(timer);
   }, [state.items, state.settings.reminderMinutes, state.settings.notifications]);
 
-  const dueItems = useMemo(() => state.items.filter(isDue), [state.items]);
+  const dueItems = useMemo(
+    () =>
+      state.items
+        .filter(isDue)
+        .sort((left, right) => new Date(left.srs.nextReview).getTime() - new Date(right.srs.nextReview).getTime()),
+    [state.items],
+  );
+
   const completedCount = useMemo(
     () => state.items.filter((item) => /done|complete/i.test(item.status)).length,
     [state.items],
   );
-  const overdueCount = useMemo(
+
+  const openItems = useMemo(
+    () => state.items.filter((item) => !/done|complete/i.test(item.status)),
+    [state.items],
+  );
+
+  const overdueItems = useMemo(
     () =>
       state.items.filter((item) => {
         if (!item.dueDate) return false;
         const value = new Date(item.dueDate).getTime();
         return !Number.isNaN(value) && value < Date.now();
-      }).length,
+      }),
     [state.items],
   );
+
   const solvedCount = state.game.solvedBlind.length;
-  const focusScore = Math.min(
-    100,
-    Math.round(
-      (dueItems.length ? 45 : 70) +
-        Math.min(25, state.game.streak * 3) +
-        Math.min(20, (completedCount / Math.max(1, state.items.length)) * 20),
-    ),
-  );
-  const levelFloor = (state.game.level - 1) * 120;
-  const levelGoal = state.game.level * 120;
-  const levelProgress = Math.max(
-    0,
-    Math.min(100, Math.round(((state.game.xp - levelFloor) / (levelGoal - levelFloor)) * 100)),
-  );
+  const trackedBlindItems = useMemo(() => state.items.filter((item) => item.source === "blind75"), [state.items]);
+  const customDecks = Array.isArray(state.decks) ? state.decks : [];
+  const selectedDeckId = state.settings.activeDeckId || "system:due";
+  const selectedTone = state.settings.ritualTone || "ember";
 
   const blindCategories = useMemo(
     () => ["All categories", ...new Set(blindItems.map((item) => item.category))],
@@ -110,6 +147,46 @@ function App() {
       return matchesSearch && matchesCategory && matchesDifficulty;
     });
   }, [filters]);
+
+  const smartDecks = useMemo(
+    () => buildSystemDecks({ dueItems, overdueItems, openItems, trackedBlindItems, state }),
+    [dueItems, overdueItems, openItems, trackedBlindItems, state],
+  );
+
+  const allDecks = useMemo(
+    () => [...smartDecks, ...customDecks.map((deck) => hydrateCustomDeck(deck, state.items))],
+    [smartDecks, customDecks, state.items],
+  );
+
+  const activeDeck = allDecks.find((deck) => deck.id === selectedDeckId) || allDecks[0];
+  const activeDeckItems = useMemo(
+    () => resolveDeckItems(activeDeck, state.items),
+    [activeDeck, state.items],
+  );
+
+  const focusScore = Math.min(
+    98,
+    Math.round(
+      (dueItems.length ? 42 : 72) +
+        Math.min(18, state.game.streak * 2.5) +
+        Math.min(18, (completedCount / Math.max(1, state.items.length)) * 22),
+    ),
+  );
+
+  const levelFloor = (state.game.level - 1) * 120;
+  const levelGoal = state.game.level * 120;
+  const levelProgress = Math.max(
+    0,
+    Math.min(100, Math.round(((state.game.xp - levelFloor) / (levelGoal - levelFloor)) * 100)),
+  );
+
+  const selectedCustomDeck =
+    customDecks.find((deck) => deck.id === state.settings.selectedCustomDeckId) || customDecks[0] || null;
+
+  const currentSessionItem = session.open ? session.queue[session.index] || null : null;
+  const sessionProgress = session.queue.length
+    ? Math.round(((session.index + (session.step === "complete" ? 1 : 0)) / session.queue.length) * 100)
+    : 0;
 
   function updateSettings(partial) {
     setState((current) => ({
@@ -145,6 +222,56 @@ function App() {
     };
   }
 
+  function launchSparkles(tone = "mint", amount = 12) {
+    const burst = Array.from({ length: amount }, (_, index) => ({
+      id: `${tone}-${Date.now()}-${index}`,
+      left: 12 + Math.random() * 76,
+      delay: Math.random() * 140,
+      duration: 1200 + Math.random() * 1200,
+      tone,
+    }));
+    setSparkles((current) => [...current, ...burst]);
+    window.setTimeout(() => {
+      setSparkles((current) => current.filter((piece) => !burst.some((added) => added.id === piece.id)));
+    }, 2600);
+  }
+
+  function ensureAudio() {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return null;
+    if (!audioRef.current) audioRef.current = new AudioCtx();
+    if (audioRef.current.state === "suspended") audioRef.current.resume();
+    return audioRef.current;
+  }
+
+  function playTone(kind = "soft") {
+    if (!state.settings.soundEnabled) return;
+    const ctx = ensureAudio();
+    if (!ctx) return;
+
+    const presets = {
+      soft: [392, 523],
+      pulse: [392, 587, 659],
+      resolve: [523, 659, 784],
+    };
+
+    const notes = presets[kind] || presets.soft;
+    notes.forEach((frequency, index) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = frequency;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const start = ctx.currentTime + index * 0.08;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.03, start + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.28);
+      osc.start(start);
+      osc.stop(start + 0.3);
+    });
+  }
+
   function awardXp(amount, reason, flare = "mint") {
     setState((current) => {
       const next = structuredClone(current);
@@ -156,21 +283,7 @@ function App() {
       return ensureAchievementDraft(next);
     });
     addLog(`+${amount} XP: ${reason}`);
-    launchSparkles(flare);
-  }
-
-  function launchSparkles(tone = "mint") {
-    const burst = Array.from({ length: 10 }, (_, index) => ({
-      id: `${tone}-${Date.now()}-${index}`,
-      left: 12 + Math.random() * 76,
-      delay: Math.random() * 120,
-      duration: 1200 + Math.random() * 900,
-      tone,
-    }));
-    setSparkles((current) => [...current, ...burst]);
-    window.setTimeout(() => {
-      setSparkles((current) => current.filter((piece) => !burst.some((added) => added.id === piece.id)));
-    }, 2200);
+    launchSparkles(flare, 10);
   }
 
   function pushReminder(title, body) {
@@ -240,18 +353,30 @@ function App() {
 
   function addManualTask(event) {
     event.preventDefault();
-    if (!form.title.trim()) return;
-    const item = createManualItem(form);
-    setState((current) => ({
-      ...current,
-      items: [item, ...current.items],
-    }));
-    setForm({ title: "", category: "" });
+    if (!itemForm.title.trim()) return;
+    const item = createManualItem(itemForm);
+
+    setState((current) => {
+      const next = {
+        ...current,
+        items: [item, ...current.items],
+      };
+      if (selectedCustomDeck) {
+        next.decks = current.decks.map((deck) =>
+          deck.id === selectedCustomDeck.id && !deck.itemIds.includes(item.id)
+            ? { ...deck, itemIds: [item.id, ...deck.itemIds] }
+            : deck,
+        );
+      }
+      return next;
+    });
+
+    setItemForm({ title: "", category: "" });
     awardXp(8, "Quick add", "pink");
     setStatus(`Added ${item.title}.`);
   }
 
-  function reviewItem(itemId, quality) {
+  function reviewItem(itemId, quality, reason = "Review") {
     setState((current) => {
       const items = current.items.map((item) =>
         item.id === itemId ? applySrsReview(item, quality) : item,
@@ -270,7 +395,8 @@ function App() {
       });
       return ensureAchievementDraft(next);
     });
-    awardXp({ 1: 2, 3: 6, 4: 10, 5: 14 }[quality] || 5, `Review ${qualityLabel(quality)}`, "mint");
+    playTone(quality >= 4 ? "resolve" : "soft");
+    awardXp({ 1: 2, 3: 6, 4: 10, 5: 14 }[quality] || 5, `${reason}: ${qualityLabel(quality)}`, "mint");
   }
 
   function completeItem(itemId) {
@@ -280,32 +406,120 @@ function App() {
         item.id === itemId ? { ...item, status: "completed" } : item,
       ),
     }));
+    playTone("pulse");
     awardXp(12, "Task completed", "gold");
   }
 
-  function addBlindItem(item) {
+  function addTrackedItemToDeck(deckId, itemId) {
+    setState((current) => ({
+      ...current,
+      decks: current.decks.map((deck) =>
+        deck.id === deckId && !deck.itemIds.includes(itemId)
+          ? { ...deck, itemIds: [itemId, ...deck.itemIds] }
+          : deck,
+      ),
+    }));
+    setStatus("Card added to custom deck.");
+  }
+
+  function removeTrackedItemFromDeck(deckId, itemId) {
+    setState((current) => ({
+      ...current,
+      decks: current.decks.map((deck) =>
+        deck.id === deckId
+          ? { ...deck, itemIds: deck.itemIds.filter((entry) => entry !== itemId) }
+          : deck,
+      ),
+    }));
+  }
+
+  function createDeck(event) {
+    event.preventDefault();
+    if (!deckForm.name.trim()) return;
+    const tone = ritualTones[(customDecks.length + 1) % ritualTones.length];
+    const deck = {
+      id: createId("deck"),
+      name: deckForm.name.trim(),
+      description: deckForm.description.trim() || "A custom ritual stack.",
+      itemIds: [],
+      tone: tone.id,
+      createdAt: new Date().toISOString(),
+    };
+    setState((current) => ({
+      ...current,
+      decks: [deck, ...(current.decks || [])],
+      settings: {
+        ...current.settings,
+        selectedCustomDeckId: deck.id,
+        activeDeckId: deck.id,
+      },
+    }));
+    setDeckForm({ name: "", description: "" });
+    setStatus(`Created deck "${deck.name}".`);
+    launchSparkles(tone.accent, 14);
+  }
+
+  function removeDeck(deckId) {
+    setState((current) => ({
+      ...current,
+      decks: current.decks.filter((deck) => deck.id !== deckId),
+      settings: {
+        ...current.settings,
+        selectedCustomDeckId:
+          current.settings.selectedCustomDeckId === deckId ? "" : current.settings.selectedCustomDeckId,
+        activeDeckId: current.settings.activeDeckId === deckId ? "system:due" : current.settings.activeDeckId,
+      },
+    }));
+    setStatus("Deck archived.");
+  }
+
+  function selectDeck(deckId) {
+    updateSettings({ activeDeckId: deckId });
+    const deck = allDecks.find((entry) => entry.id === deckId);
+    if (deck?.kind === "custom") {
+      updateSettings({ selectedCustomDeckId: deck.id });
+    }
+    setRitualLine(deck ? deck.copy : "Choose a deck and begin a ritual.");
+  }
+
+  function addBlindItem(item, deckId = "") {
     setState((current) => {
-      if (current.items.some((existing) => existing.blindId === item.id)) return current;
+      const existingTracked = current.items.find((entry) => entry.blindId === item.id);
+      const trackedId = existingTracked?.id || createId("blind");
+      const nextItems = existingTracked
+        ? current.items
+        : [
+            {
+              id: trackedId,
+              blindId: item.id,
+              title: item.title,
+              category: item.category,
+              difficulty: item.difficulty,
+              status: "open",
+              source: "blind75",
+              notes: "",
+              dueDate: "",
+              srs: createDefaultSrs(),
+            },
+            ...current.items,
+          ];
+
+      const nextDecks = deckId
+        ? current.decks.map((deck) =>
+            deck.id === deckId && !deck.itemIds.includes(trackedId)
+              ? { ...deck, itemIds: [trackedId, ...deck.itemIds] }
+              : deck,
+          )
+        : current.decks;
+
       return {
         ...current,
-        items: [
-          {
-            id: createId("blind"),
-            blindId: item.id,
-            title: item.title,
-            category: item.category,
-            difficulty: item.difficulty,
-            status: "open",
-            source: "blind75",
-            notes: "",
-            dueDate: "",
-            srs: createDefaultSrs(),
-          },
-          ...current.items,
-        ],
+        items: nextItems,
+        decks: nextDecks,
       };
     });
-    awardXp(6, "Blind 75 added", "blue");
+    playTone("soft");
+    awardXp(6, deckId ? "Blind card routed to deck" : "Blind card added", "blue");
   }
 
   function toggleSolved(itemId) {
@@ -325,70 +539,95 @@ function App() {
       });
       return ensureAchievementDraft(next);
     });
+    playTone("resolve");
     awardXp(20, "Problem solved", "pink");
   }
 
-  function loadBlindDeck() {
-    let count = 0;
-    setState((current) => {
-      const existing = new Set(current.items.map((item) => item.blindId).filter(Boolean));
-      const additions = blindItems
-        .filter((item) => !existing.has(item.id))
-        .map((item) => ({
-          id: createId("blind"),
-          blindId: item.id,
-          title: item.title,
-          category: item.category,
-          difficulty: item.difficulty,
-          status: "open",
-          source: "blind75",
-          notes: "",
-          dueDate: "",
-          srs: createDefaultSrs(),
-        }));
-      count = additions.length;
-      return {
-        ...current,
-        items: [...current.items, ...additions],
-      };
+  function startSession(deck) {
+    const queue = resolveDeckItems(deck, state.items).filter((item) => !/done|complete/i.test(item.status));
+    if (!queue.length) {
+      setStatus("This deck is empty right now. Add cards or pick another ritual.");
+      return;
+    }
+
+    setSession({
+      open: true,
+      deckId: deck.id,
+      queue,
+      index: 0,
+      step: "live",
+      reviewed: [],
+      lastQuality: null,
+      startedAt: Date.now(),
     });
-    awardXp(25, "Blind 75 loaded", "gold");
-    setStatus(`Added ${count} Blind 75 prompts to your tracker.`);
+    setRitualLine(`Entering ${deck.name}. ${deck.copy}`);
+    playTone("pulse");
   }
 
-  function toggleDailyDeck(itemId) {
-    setState((current) => {
-      const hasIt = current.game.dailyDeck.includes(itemId);
-      return {
-        ...current,
-        game: {
-          ...current.game,
-          dailyDeck: hasIt
-            ? current.game.dailyDeck.filter((entry) => entry !== itemId)
-            : [...current.game.dailyDeck, itemId],
-        },
-      };
+  function closeSession() {
+    setSession({
+      open: false,
+      deckId: "",
+      queue: [],
+      index: 0,
+      step: "idle",
+      reviewed: [],
+      lastQuality: null,
+      startedAt: 0,
     });
+  }
+
+  function answerSession(quality) {
+    const currentItem = session.queue[session.index];
+    if (!currentItem) return;
+    reviewItem(currentItem.id, quality, "Ritual");
+
+    const reviewed = [...session.reviewed, { id: currentItem.id, quality }];
+    const hasNext = session.index < session.queue.length - 1;
+    setSession((current) => ({
+      ...current,
+      step: hasNext ? "transition" : "complete",
+      reviewed,
+      lastQuality: quality,
+    }));
+
+    if (hasNext) {
+      window.setTimeout(() => {
+        setSession((current) => ({
+          ...current,
+          index: current.index + 1,
+          step: "live",
+        }));
+      }, 320);
+    } else {
+      launchSparkles("gold", 20);
+      setStatus("Ritual complete.");
+    }
   }
 
   function rollChallenge() {
-    const duePool = dueItems.map((item) => `Review "${item.title}" and push it forward.`);
-    const blindPool = blindItems
-      .filter((item) => !state.game.solvedBlind.includes(item.id))
-      .slice(0, 20)
-      .map((item) => `Solve "${item.title}" from ${item.category}.`);
-    const pool = [...duePool, ...blindPool];
-    setChallenge(
+    const pool = [
+      ...dueItems.slice(0, 8).map((item) => `Review "${item.title}" with full attention.`),
+      ...overdueItems.slice(0, 5).map((item) => `Recover "${item.title}" before it slips further.`),
+      ...blindItems
+        .filter((item) => !state.game.solvedBlind.includes(item.id))
+        .slice(0, 12)
+        .map((item) => `Bring "${item.title}" into a custom deck and solve it.`),
+    ];
+    setRitualLine(
       pool.length
         ? pool[Math.floor(Math.random() * pool.length)]
-        : "You cleared the board. Take a breather and come back sharper.",
+        : "Everything is under control. Curate a fresh custom deck for tomorrow.",
     );
   }
 
+  const heroTone = ritualTones.find((tone) => tone.id === selectedTone) || ritualTones[0];
+
   return (
-    <div className="page-shell">
+    <div className={`page-shell tone-${heroTone.id}`}>
       <div className="orb orb-a" />
       <div className="orb orb-b" />
+      <div className="orb orb-c" />
       <div className="spark-layer" aria-hidden="true">
         {sparkles.map((piece) => (
           <span
@@ -403,65 +642,285 @@ function App() {
         ))}
       </div>
 
+      {session.open ? (
+        <FocusSessionOverlay
+          deck={allDecks.find((deck) => deck.id === session.deckId)}
+          session={session}
+          currentItem={currentSessionItem}
+          progress={sessionProgress}
+          onClose={closeSession}
+          onAnswer={answerSession}
+        />
+      ) : null}
+
       <main className="app-shell">
-        <section className="hero-panel">
-          <div className="hero-copy">
-            <p className="eyebrow">Work tracking meets memory design</p>
-            <h1>Work Pulse</h1>
+        <section className="cinema-hero">
+          <div className="cinema-copy">
+            <p className="eyebrow">Premium Focus Trainer</p>
+            <h1>Ritual decks for deep work and cleaner recall.</h1>
             <p className="hero-text">
-              A calmer, sharper workspace for your sheet-backed tasks, spaced repetition reviews,
-              and coding practice deck.
+              Build smart decks, create custom rituals, and review inside an immersive trainer that
+              feels smooth, intentional, and calm.
             </p>
             <div className="hero-actions">
-              <button className="button button-primary" onClick={() => syncFromSheet(false)}>
-                Sync sheet
+              <button className="button button-primary" onClick={() => startSession(activeDeck)}>
+                Begin ritual
               </button>
               <button className="button button-secondary" onClick={rollChallenge}>
-                Roll challenge
+                Inspire me
               </button>
             </div>
-            <p className="status-line">{status}</p>
+            <div className="ritual-strip">
+              <span className="ritual-line">{ritualLine}</span>
+              <span className="status-pill">{status}</span>
+            </div>
           </div>
 
-          <div className="hero-dashboard">
-            <div className="hero-card glass">
-              <span>Focus score</span>
-              <strong>{focusScore}</strong>
-              <p>{dueItems.length ? "A few reviews want your attention." : "You are in a clean zone."}</p>
-            </div>
-            <div className="hero-card hero-card-accent">
-              <span>Level {state.game.level}</span>
-              <strong>{state.game.xp} XP</strong>
-              <div className="progress-track">
-                <span style={{ width: `${levelProgress}%` }} />
+          <div className="cinema-stage">
+            <div className="focus-orbit">
+              <div className="focus-ring ring-one" />
+              <div className="focus-ring ring-two" />
+              <div className="focus-core">
+                <span>Live deck</span>
+                <strong>{activeDeck?.name || "Due ritual"}</strong>
+                <p>{activeDeck?.count || 0} cards loaded</p>
               </div>
-              <p>{state.game.coins} coins collected</p>
             </div>
-            <div className="hero-radar">
-              <div className="radar-ring radar-ring-a" />
-              <div className="radar-ring radar-ring-b" />
-              <div className="radar-core" />
-              <div className="radar-copy">
-                <span>Daily streak</span>
-                <strong>{state.game.streak} days</strong>
+            <div className="stage-panel glass">
+              <div className="stage-head">
+                <span>Focus score</span>
+                <strong>{focusScore}</strong>
+              </div>
+              <div className="stage-grid">
+                <MetricCell label="Due now" value={dueItems.length} />
+                <MetricCell label="Streak" value={`${state.game.streak}d`} />
+                <MetricCell label="Level" value={state.game.level} />
+                <MetricCell label="Solved" value={`${solvedCount}/75`} />
+              </div>
+              <div className="progress-wrap">
+                <div className="progress-caption">
+                  <span>Level progress</span>
+                  <span>{state.game.xp} XP</span>
+                </div>
+                <div className="progress-track">
+                  <span style={{ width: `${levelProgress}%` }} />
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="metrics-grid">
-          <MetricCard label="Due reviews" value={dueItems.length} note="Keep the queue fresh" />
-          <MetricCard label="Total items" value={state.items.length} note="Across all sources" />
-          <MetricCard label="Completed" value={completedCount} note="Momentum this cycle" />
-          <MetricCard label="Blind 75 solved" value={`${solvedCount}/75`} note="Interview muscle" />
-          <MetricCard label="Overdue" value={overdueCount} note="Deadlines to rescue" />
-        </section>
+        <section className="studio-grid">
+          <div className="column-main">
+            <StudioCard
+              title="Deck Atelier"
+              subtitle="Smart decks for now, custom decks for how you want to work."
+              action={<span className="section-chip">{allDecks.length} decks</span>}
+            >
+              <div className="tone-switcher">
+                {ritualTones.map((tone) => (
+                  <button
+                    key={tone.id}
+                    className={`tone-pill ${selectedTone === tone.id ? "is-active" : ""}`}
+                    onClick={() => updateSettings({ ritualTone: tone.id })}
+                  >
+                    <strong>{tone.name}</strong>
+                    <span>{tone.copy}</span>
+                  </button>
+                ))}
+              </div>
 
-        <section className="workspace-grid">
-          <div className="main-column">
-            <SectionCard
-              title="Control Center"
-              aside={<span className="section-chip">Auto refresh ready</span>}
+              <div className="deck-shelf">
+                {allDecks.map((deck) => (
+                  <button
+                    key={deck.id}
+                    className={`deck-card deck-${deck.tone || "ember"} ${selectedDeckId === deck.id ? "is-selected" : ""}`}
+                    onClick={() => selectDeck(deck.id)}
+                  >
+                    <div className="deck-card-head">
+                      <span>{deck.kind === "custom" ? "Custom deck" : "Smart deck"}</span>
+                      <span>{deck.count} cards</span>
+                    </div>
+                    <strong>{deck.name}</strong>
+                    <p>{deck.description}</p>
+                    <div className="deck-card-foot">
+                      <span>{deck.copy}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="atelier-grid">
+                <form className="deck-builder" onSubmit={createDeck}>
+                  <div className="subhead">
+                    <h3>Create Custom Deck</h3>
+                    <span>{selectedCustomDeck ? `Editing shelf: ${selectedCustomDeck.name}` : "Start a new shelf"}</span>
+                  </div>
+                  <input
+                    placeholder="Deck name"
+                    value={deckForm.name}
+                    onChange={(event) => setDeckForm((current) => ({ ...current, name: event.target.value }))}
+                  />
+                  <textarea
+                    rows="3"
+                    placeholder="Short mood or intent for this ritual"
+                    value={deckForm.description}
+                    onChange={(event) =>
+                      setDeckForm((current) => ({ ...current, description: event.target.value }))
+                    }
+                  />
+                  <button className="button button-primary" type="submit">
+                    Create deck
+                  </button>
+                </form>
+
+                <div className="deck-manager">
+                  <div className="subhead">
+                    <h3>Custom Shelf</h3>
+                    <span>{customDecks.length} saved</span>
+                  </div>
+                  <div className="custom-deck-list">
+                    {customDecks.length ? (
+                      customDecks.map((deck) => {
+                        const hydrated = hydrateCustomDeck(deck, state.items);
+                        const isEditing = selectedCustomDeck?.id === deck.id;
+                        return (
+                          <article className={`custom-deck-row ${isEditing ? "is-editing" : ""}`} key={deck.id}>
+                            <button className="custom-deck-main" onClick={() => selectDeck(deck.id)}>
+                              <strong>{deck.name}</strong>
+                              <span>{hydrated.count} cards • {deck.description}</span>
+                            </button>
+                            <div className="custom-deck-actions">
+                              <button
+                                className="button button-ghost"
+                                onClick={() => updateSettings({ selectedCustomDeckId: deck.id, activeDeckId: deck.id })}
+                              >
+                                Edit
+                              </button>
+                              <button className="button button-ghost" onClick={() => removeDeck(deck.id)}>
+                                Archive
+                              </button>
+                            </div>
+                          </article>
+                        );
+                      })
+                    ) : (
+                      <EmptyState text="No custom decks yet. Build one for interview prep, writing, or a daily ritual." />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </StudioCard>
+
+            <StudioCard
+              title="Ritual Queue"
+              subtitle="A calmer preview of what the selected deck will feel like."
+              action={
+                <div className="queue-actions">
+                  <span className="section-chip">{activeDeckItems.length} cards</span>
+                  <button className="button button-primary" onClick={() => startSession(activeDeck)}>
+                    Start session
+                  </button>
+                </div>
+              }
+            >
+              <div className="queue-preview">
+                {activeDeckItems.length ? (
+                  activeDeckItems.slice(0, 4).map((item, index) => (
+                    <article className="ritual-card" key={item.id}>
+                      <div className="ritual-card-head">
+                        <span>Card {String(index + 1).padStart(2, "0")}</span>
+                        <span>{item.category}</span>
+                      </div>
+                      <strong>{item.title}</strong>
+                      <p>
+                        {item.dueDate ? `${formatRelative(item.dueDate)} deadline` : `Next review ${formatDate(item.srs.nextReview)}`}
+                      </p>
+                    </article>
+                  ))
+                ) : (
+                  <EmptyState text="This deck is empty. Add cards from the library below or switch to another deck." />
+                )}
+              </div>
+            </StudioCard>
+
+            <StudioCard
+              title="Tracked Library"
+              subtitle="All captured work cards. Route them into your custom decks."
+              action={<span className="section-chip">{state.items.length} tracked cards</span>}
+            >
+              <div className="quick-add-panel">
+                <form className="quick-form wide" onSubmit={addManualTask}>
+                  <input
+                    placeholder="Task or topic"
+                    value={itemForm.title}
+                    onChange={(event) => setItemForm((current) => ({ ...current, title: event.target.value }))}
+                  />
+                  <input
+                    placeholder="Category"
+                    value={itemForm.category}
+                    onChange={(event) => setItemForm((current) => ({ ...current, category: event.target.value }))}
+                  />
+                  <button className="button button-primary" type="submit">
+                    Add card
+                  </button>
+                </form>
+              </div>
+
+              <div className="library-grid">
+                {state.items.length ? (
+                  state.items.slice(0, 18).map((item) => {
+                    const done = /done|complete/i.test(item.status);
+                    const inSelectedDeck = selectedCustomDeck?.itemIds.includes(item.id);
+                    return (
+                      <article className={`library-card ${done ? "is-complete" : ""}`} key={item.id}>
+                        <div className="library-card-head">
+                          <span>{item.category}</span>
+                          <span>{item.source}</span>
+                        </div>
+                        <strong>{item.title}</strong>
+                        <p>
+                          {item.dueDate ? formatRelative(item.dueDate) : `Next review ${formatDate(item.srs.nextReview)}`}
+                        </p>
+                        <div className="library-card-actions">
+                          {!done ? (
+                            <button className="button button-ghost" onClick={() => completeItem(item.id)}>
+                              Complete
+                            </button>
+                          ) : null}
+                          {selectedCustomDeck ? (
+                            inSelectedDeck ? (
+                              <button
+                                className="button button-ghost"
+                                onClick={() => removeTrackedItemFromDeck(selectedCustomDeck.id, item.id)}
+                              >
+                                Remove from {selectedCustomDeck.name}
+                              </button>
+                            ) : (
+                              <button
+                                className="button button-ghost"
+                                onClick={() => addTrackedItemToDeck(selectedCustomDeck.id, item.id)}
+                              >
+                                Add to {selectedCustomDeck.name}
+                              </button>
+                            )
+                          ) : null}
+                        </div>
+                      </article>
+                    );
+                  })
+                ) : (
+                  <EmptyState text="No tracked cards yet. Sync a sheet, import CSV, or add a manual card to begin." />
+                )}
+              </div>
+            </StudioCard>
+          </div>
+
+          <aside className="column-side">
+            <StudioCard
+              title="Control Deck"
+              subtitle="Inputs, sync, reminders, and ambient trainer settings."
+              action={<span className="section-chip">Live setup</span>}
             >
               <div className="control-grid">
                 <label>
@@ -474,7 +933,7 @@ function App() {
                   />
                 </label>
                 <label>
-                  Refresh interval (minutes)
+                  Refresh interval
                   <input
                     type="number"
                     min="5"
@@ -488,7 +947,7 @@ function App() {
                   />
                 </label>
                 <label>
-                  Reminder cadence (minutes)
+                  Reminder cadence
                   <input
                     type="number"
                     min="5"
@@ -502,18 +961,18 @@ function App() {
                   />
                 </label>
                 <label>
-                  Theme mood
+                  Theme
                   <select
                     value={state.settings.themeMode}
                     onChange={(event) => updateSettings({ themeMode: event.target.value })}
                   >
-                    <option value="night">Night glass</option>
-                    <option value="dawn">Dawn paper</option>
+                    <option value="night">Night studio</option>
+                    <option value="dawn">Dawn studio</option>
                   </select>
                 </label>
               </div>
 
-              <div className="action-row">
+              <div className="action-stack">
                 <button className="button button-primary" onClick={() => syncFromSheet(false)}>
                   Sync from sheet
                 </button>
@@ -523,140 +982,46 @@ function App() {
                 <button className="button button-ghost" onClick={enableNotifications}>
                   Enable notifications
                 </button>
-                <label className="checkbox-row">
+                <label className="toggle-row">
                   <input
                     type="checkbox"
                     checked={state.settings.preferAltLinks}
                     onChange={(event) => updateSettings({ preferAltLinks: event.target.checked })}
                   />
-                  Prefer alternative links for premium Blind 75 prompts
+                  Prefer alternate links for premium Blind cards
+                </label>
+                <label className="toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={state.settings.soundEnabled !== false}
+                    onChange={(event) => updateSettings({ soundEnabled: event.target.checked })}
+                  />
+                  Ritual chimes and completion tones
                 </label>
                 <input ref={fileRef} type="file" accept=".csv,text/csv" hidden onChange={importCsv} />
               </div>
-            </SectionCard>
+            </StudioCard>
 
-            <SectionCard
-              title="Due For Review"
-              aside={<span className="section-chip">{dueItems.length} live</span>}
+            <StudioCard
+              title="Momentum"
+              subtitle="A softer, more ceremonial progress layer."
+              action={<span className="section-chip">{state.game.unlocked.length} unlocked</span>}
             >
-              <div className="stack-list">
-                {dueItems.length ? (
-                  dueItems.map((item) => (
-                    <article className="task-card" key={item.id}>
-                      <div className="task-head">
-                        <div>
-                          <strong>{item.title}</strong>
-                          <p>{item.category}</p>
-                        </div>
-                        <span className="pill">Interval {item.srs.interval}d</span>
-                      </div>
-                      <p className="task-meta">Next review {formatDate(item.srs.nextReview)}</p>
-                      <div className="review-row">
-                        {[1, 3, 4, 5].map((quality) => (
-                          <button
-                            key={quality}
-                            className={`review-button review-${quality}`}
-                            onClick={() => reviewItem(item.id, quality)}
-                          >
-                            {qualityLabel(quality)}
-                          </button>
-                        ))}
-                      </div>
-                    </article>
-                  ))
-                ) : (
-                  <EmptyState text="Nothing is due right now. That is a lovely place to be." />
-                )}
+              <div className="momentum-panel">
+                <div className="momentum-meter">
+                  <span>Level {state.game.level}</span>
+                  <strong>{state.game.xp} XP</strong>
+                  <div className="progress-track">
+                    <span style={{ width: `${levelProgress}%` }} />
+                  </div>
+                </div>
+                <div className="momentum-grid">
+                  <MetricCell label="Coins" value={state.game.coins} />
+                  <MetricCell label="Today reviews" value={`${state.game.daily.reviews}/5`} />
+                  <MetricCell label="Today solves" value={`${state.game.daily.solves}/2`} />
+                  <MetricCell label="Overdue" value={overdueItems.length} />
+                </div>
               </div>
-            </SectionCard>
-
-            <SectionCard
-              title="All Work Items"
-              aside={<span className="section-chip">{state.items.length} tracked</span>}
-            >
-              <div className="stack-list">
-                {state.items.length ? (
-                  state.items.map((item) => {
-                    const done = /done|complete/i.test(item.status);
-                    const linkedBlind = item.blindId
-                      ? blindItems.find((entry) => entry.id === item.blindId)
-                      : null;
-                    const href = linkedBlind
-                      ? linkedBlind.premium && state.settings.preferAltLinks
-                        ? linkedBlind.alt
-                        : linkedBlind.link
-                      : "";
-                    return (
-                      <article className="task-card task-card-soft" key={item.id}>
-                        <div className="task-head">
-                          <div>
-                            <strong>
-                              {href ? (
-                                <a href={href} target="_blank" rel="noreferrer">
-                                  {item.title}
-                                </a>
-                              ) : (
-                                item.title
-                              )}
-                            </strong>
-                            <p>
-                              {item.category} • {item.status}
-                            </p>
-                          </div>
-                          {item.dueDate ? <span className="pill">{formatRelative(item.dueDate)}</span> : null}
-                        </div>
-                        <p className="task-meta">Next review {formatDate(item.srs.nextReview)}</p>
-                        {!done ? (
-                          <button className="button button-ghost" onClick={() => completeItem(item.id)}>
-                            Complete +12XP
-                          </button>
-                        ) : null}
-                      </article>
-                    );
-                  })
-                ) : (
-                  <EmptyState text="No items yet. Sync a sheet or add a task to start shaping the space." />
-                )}
-              </div>
-            </SectionCard>
-          </div>
-
-          <aside className="side-column">
-            <SectionCard title="Quick Add" aside={<span className="section-chip">Fast capture</span>}>
-              <form className="quick-form" onSubmit={addManualTask}>
-                <input
-                  placeholder="Task or topic"
-                  value={form.title}
-                  onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-                />
-                <input
-                  placeholder="Category"
-                  value={form.category}
-                  onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
-                />
-                <button className="button button-primary" type="submit">
-                  Add item
-                </button>
-              </form>
-            </SectionCard>
-
-            <SectionCard title="Game Layer" aside={<span className="section-chip">Momentum</span>}>
-              <div className="game-grid">
-                <MiniStat label="Coins" value={state.game.coins} />
-                <MiniStat label="Reviews today" value={`${state.game.daily.reviews}/5`} />
-                <MiniStat label="Solves today" value={`${state.game.daily.solves}/2`} />
-                <MiniStat label="Total reviews" value={state.game.totalReviews} />
-              </div>
-              <div className="challenge-box">
-                <p>Challenge board</p>
-                <strong>{challenge}</strong>
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              title="Achievements"
-              aside={<span className="section-chip">{state.game.unlocked.length} unlocked</span>}
-            >
               <div className="achievement-list">
                 {Object.entries(achievementMap).map(([key, label]) => {
                   const unlocked = state.game.unlocked.includes(key);
@@ -668,106 +1033,152 @@ function App() {
                   );
                 })}
               </div>
-            </SectionCard>
+            </StudioCard>
 
-            <SectionCard title="Reminder Log" aside={<span className="section-chip">Recent</span>}>
+            <StudioCard
+              title="Blind Card Library"
+              subtitle="Curate practice decks the same way you curate work rituals."
+              action={<span className="section-chip">{filteredBlind.length} visible</span>}
+            >
+              <div className="filters-column">
+                <input
+                  placeholder="Search prompts"
+                  value={filters.search}
+                  onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+                />
+                <select
+                  value={filters.category}
+                  onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}
+                >
+                  {blindCategories.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+                <select
+                  value={filters.difficulty}
+                  onChange={(event) => setFilters((current) => ({ ...current, difficulty: event.target.value }))}
+                >
+                  {["All difficulty", "Easy", "Medium", "Hard"].map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="blind-library">
+                {filteredBlind.slice(0, 12).map((item) => {
+                  const tracked = state.items.some((entry) => entry.blindId === item.id);
+                  const solved = state.game.solvedBlind.includes(item.id);
+                  const href = item.premium && state.settings.preferAltLinks ? item.alt : item.link;
+                  return (
+                    <article className={`blind-library-card ${solved ? "is-solved" : ""}`} key={item.id}>
+                      <div className="blind-card-top">
+                        <span>{item.category}</span>
+                        <span>{item.difficulty}</span>
+                      </div>
+                      <strong>
+                        <a href={href} target="_blank" rel="noreferrer">
+                          {item.title}
+                        </a>
+                      </strong>
+                      <p>{solved ? "Solved and logged." : tracked ? "Tracked in your library." : "Ready to route."}</p>
+                      <div className="blind-actions">
+                        <button className="button button-ghost" onClick={() => addBlindItem(item)}>
+                          {tracked ? "Track again" : "Track card"}
+                        </button>
+                        {selectedCustomDeck ? (
+                          <button className="button button-ghost" onClick={() => addBlindItem(item, selectedCustomDeck.id)}>
+                            Add to {selectedCustomDeck.name}
+                          </button>
+                        ) : null}
+                        <button className="button button-primary" disabled={solved} onClick={() => toggleSolved(item.id)}>
+                          {solved ? "Solved" : "Mark solved"}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </StudioCard>
+
+            <StudioCard
+              title="Session Log"
+              subtitle="Recent wins, reminders, and ritual echoes."
+              action={<span className="section-chip">Recent</span>}
+            >
               <div className="log-list">
                 {state.reminders.length ? (
                   state.reminders.map((entry) => <div key={entry}>{entry}</div>)
                 ) : (
-                  <EmptyState text="No reminders yet. Once you start reviewing, your timeline will show up here." />
+                  <EmptyState text="Nothing logged yet. Once you start using rituals, your session history appears here." />
                 )}
               </div>
-            </SectionCard>
+            </StudioCard>
           </aside>
-        </section>
-
-        <section className="arena-panel">
-          <div className="arena-header">
-            <div>
-              <p className="eyebrow">Blind 75 Arena</p>
-              <h2>Build your interview deck visually</h2>
-            </div>
-            <div className="arena-actions">
-              <button className="button button-secondary" onClick={loadBlindDeck}>
-                Load all into tracker
-              </button>
-            </div>
-          </div>
-
-          <div className="filters-row">
-            <input
-              placeholder="Search questions"
-              value={filters.search}
-              onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-            />
-            <select
-              value={filters.category}
-              onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}
-            >
-              {blindCategories.map((option) => (
-                <option key={option}>{option}</option>
-              ))}
-            </select>
-            <select
-              value={filters.difficulty}
-              onChange={(event) => setFilters((current) => ({ ...current, difficulty: event.target.value }))}
-            >
-              {["All difficulty", "Easy", "Medium", "Hard"].map((option) => (
-                <option key={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="deck-banner">
-            <div>
-              <span>Daily deck</span>
-              <strong>{state.game.dailyDeck.length} cards selected</strong>
-            </div>
-            <p>Use this as your focused interview sprint queue.</p>
-          </div>
-
-          <div className="blind-grid">
-            {filteredBlind.map((item) => {
-              const inTracker = state.items.some((entry) => entry.blindId === item.id);
-              const solved = state.game.solvedBlind.includes(item.id);
-              const inDeck = state.game.dailyDeck.includes(item.id);
-              const href =
-                item.premium && state.settings.preferAltLinks ? item.alt : item.link;
-              return (
-                <article
-                  className={`blind-card difficulty-${item.difficulty.toLowerCase()} ${solved ? "is-solved" : ""}`}
-                  key={item.id}
-                >
-                  <div className="blind-card-top">
-                    <span>{item.category}</span>
-                    <span>{item.difficulty}</span>
-                  </div>
-                  <h3>
-                    <a href={href} target="_blank" rel="noreferrer">
-                      {item.title}
-                    </a>
-                  </h3>
-                  <p>{solved ? "Captured" : inTracker ? "Tracked in your workspace" : "Ready to add"}</p>
-                  <div className="blind-actions">
-                    <button className="button button-ghost" disabled={inTracker} onClick={() => addBlindItem(item)}>
-                      {inTracker ? "In tracker" : "Add"}
-                    </button>
-                    <button className="button button-ghost" onClick={() => toggleDailyDeck(item.id)}>
-                      {inDeck ? "Remove deck" : "Add deck"}
-                    </button>
-                    <button className="button button-primary" disabled={solved} onClick={() => toggleSolved(item.id)}>
-                      {solved ? "Solved" : "Solved +20XP"}
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
         </section>
       </main>
     </div>
   );
+}
+
+function buildSystemDecks({ dueItems, overdueItems, openItems, trackedBlindItems }) {
+  return [
+    {
+      id: "system:due",
+      kind: "system",
+      name: "Due Ritual",
+      description: "Everything that needs recall right now.",
+      copy: "Best for short, clean review sweeps.",
+      tone: "ember",
+      itemIds: dueItems.map((item) => item.id),
+      count: dueItems.length,
+    },
+    {
+      id: "system:overdue",
+      kind: "system",
+      name: "Recovery Deck",
+      description: "Cards with slipping deadlines and neglected momentum.",
+      copy: "Use this when you want to recover shape quickly.",
+      tone: "atlas",
+      itemIds: overdueItems.map((item) => item.id),
+      count: overdueItems.length,
+    },
+    {
+      id: "system:flow",
+      kind: "system",
+      name: "Flow Stack",
+      description: "Open work cards, lightly sorted for a productive pass.",
+      copy: "A balanced deck for calm progress sessions.",
+      tone: "aurora",
+      itemIds: openItems.map((item) => item.id),
+      count: openItems.length,
+    },
+    {
+      id: "system:blind",
+      kind: "system",
+      name: "Blind Practice",
+      description: "All tracked interview cards in one smooth practice deck.",
+      copy: "Great for coding ritual sessions.",
+      tone: "atlas",
+      itemIds: trackedBlindItems.map((item) => item.id),
+      count: trackedBlindItems.length,
+    },
+  ];
+}
+
+function hydrateCustomDeck(deck, items) {
+  const count = deck.itemIds.filter((itemId) => items.some((item) => item.id === itemId)).length;
+  return {
+    ...deck,
+    kind: "custom",
+    copy: deck.description || "A custom ritual stack.",
+    count,
+  };
+}
+
+function resolveDeckItems(deck, items) {
+  if (!deck) return [];
+  const byId = new Map(items.map((item) => [item.id, item]));
+  return (deck.itemIds || []).map((itemId) => byId.get(itemId)).filter(Boolean);
 }
 
 function ensureDailyState(sourceState) {
@@ -776,6 +1187,7 @@ function ensureDailyState(sourceState) {
   if (current.game.daily.date === today) return current;
   if (!current.game.daily.date) {
     current.game.daily = { date: today, reviews: 0, solves: 0 };
+    current.game.streak = Math.max(current.game.streak, 1);
     return current;
   }
 
@@ -786,33 +1198,100 @@ function ensureDailyState(sourceState) {
   return current;
 }
 
-function MetricCard({ label, value, note }) {
+function StudioCard({ title, subtitle, action, children }) {
   return (
-    <article className="metric-card glass">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <p>{note}</p>
-    </article>
-  );
-}
-
-function SectionCard({ title, aside, children }) {
-  return (
-    <section className="section-card glass">
-      <div className="section-head">
-        <h2>{title}</h2>
-        {aside}
+    <section className="studio-card glass">
+      <div className="studio-head">
+        <div>
+          <h2>{title}</h2>
+          <p>{subtitle}</p>
+        </div>
+        {action}
       </div>
       {children}
     </section>
   );
 }
 
-function MiniStat({ label, value }) {
+function MetricCell({ label, value }) {
   return (
-    <div className="mini-stat">
+    <div className="metric-cell">
       <span>{label}</span>
       <strong>{value}</strong>
+    </div>
+  );
+}
+
+function FocusSessionOverlay({ deck, session, currentItem, progress, onClose, onAnswer }) {
+  const elapsedSeconds = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
+
+  return (
+    <div className="session-overlay">
+      <div className="session-backdrop" onClick={onClose} />
+      <div className={`session-shell ${session.step === "transition" ? "is-transitioning" : ""}`}>
+        <div className="session-topbar">
+          <div>
+            <span className="eyebrow">Focus Session</span>
+            <h2>{deck?.name || "Ritual"}</h2>
+          </div>
+          <button className="button button-ghost" onClick={onClose}>
+            Exit ritual
+          </button>
+        </div>
+
+        <div className="session-progress">
+          <div className="progress-caption">
+            <span>
+              Card {Math.min(session.index + 1, session.queue.length)} of {session.queue.length}
+            </span>
+            <span>{elapsedSeconds}s elapsed</span>
+          </div>
+          <div className="progress-track">
+            <span style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+
+        {session.step === "complete" ? (
+          <div className="session-complete">
+            <p className="eyebrow">Session Complete</p>
+            <h3>Clean run. The ritual is closed.</h3>
+            <p>
+              You reviewed {session.reviewed.length} cards in {Math.max(1, elapsedSeconds)} seconds.
+            </p>
+            <button className="button button-primary" onClick={onClose}>
+              Return to studio
+            </button>
+          </div>
+        ) : currentItem ? (
+          <div className="session-stage">
+            <article className="session-card">
+              <div className="session-card-head">
+                <span>{currentItem.category}</span>
+                <span>{currentItem.source}</span>
+              </div>
+              <strong>{currentItem.title}</strong>
+              <p>
+                {currentItem.dueDate
+                  ? `Deadline ${formatDate(currentItem.dueDate)}`
+                  : `Next review ${formatDate(currentItem.srs.nextReview)}`}
+              </p>
+            </article>
+
+            <div className="session-actions">
+              {[1, 3, 4, 5].map((quality) => (
+                <button
+                  key={quality}
+                  className={`session-answer answer-${quality}`}
+                  onClick={() => onAnswer(quality)}
+                >
+                  <span>{qualityLabel(quality)}</span>
+                  <strong>{quality === 1 ? "Reset" : quality === 3 ? "Strain" : quality === 4 ? "Solid" : "Fluent"}</strong>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
