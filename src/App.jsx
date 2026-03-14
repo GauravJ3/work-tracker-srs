@@ -236,6 +236,10 @@ function App() {
     },
   ];
   const HeroDeckIcon = getDeckIcon(displayDeck?.name);
+  const nextRecommendedDeck = useMemo(
+    () => allDecks.find((deck) => deck.id !== session.deckId && deck.count > 0) || recommendedDeck,
+    [allDecks, recommendedDeck, session.deckId],
+  );
 
   function updateSettings(partial) {
     setState((current) => ({
@@ -586,7 +590,7 @@ function App() {
       deckId: candidateDeck.id,
       queue,
       index: 0,
-      step: "live",
+      step: "intro",
       reviewed: [],
       startedAt: Date.now(),
     });
@@ -607,6 +611,15 @@ function App() {
       reviewed: [],
       startedAt: 0,
     });
+  }
+
+  function beginSession() {
+    setSession((current) => ({
+      ...current,
+      step: "live",
+      startedAt: current.startedAt || Date.now(),
+    }));
+    playTone("pulse");
   }
 
   function answerSession(quality) {
@@ -671,6 +684,8 @@ function App() {
           session={session}
           currentItem={currentSessionItem}
           progress={sessionProgress}
+          nextDeck={nextRecommendedDeck}
+          onBegin={beginSession}
           onAnswer={answerSession}
           onClose={closeSession}
         />
