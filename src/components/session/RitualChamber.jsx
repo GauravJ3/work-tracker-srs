@@ -1,7 +1,7 @@
-import { Archive, Clock3, Layers3, Sparkles } from "lucide-react";
+import { Archive, Clock3, Layers3, Sparkles, Wand2 } from "lucide-react";
 import TrainerCard from "../cards/TrainerCard";
 
-function RitualChamber({ deck, session, currentItem, progress, nextDeck, onBegin, onAnswer, onClose }) {
+function RitualChamber({ deck, session, currentItem, progress, nextDeck, onBegin, onReveal, onAnswer, onClose }) {
   const elapsed = Math.max(1, Math.round((Date.now() - session.startedAt) / 1000));
   const estimatedMinutes = Math.max(2, Math.round(session.queue.length * 1.2));
   const answeredAgain = session.reviewed.filter((entry) => entry.quality <= 1).length;
@@ -91,23 +91,42 @@ function RitualChamber({ deck, session, currentItem, progress, nextDeck, onBegin
               <span style={{ width: `${progress}%` }} />
             </div>
             <div className="session-card-frame">
-              <TrainerCard item={currentItem} badge={`Card ${session.index + 1}`} variant="session" />
+              <TrainerCard
+                item={currentItem}
+                badge={`Card ${session.index + 1}`}
+                variant="session"
+                reveal={session.revealed}
+              />
             </div>
-            <div className="session-actions">
-              {[1, 3, 4, 5].map((quality) => (
-                <button
-                  key={quality}
-                  type="button"
-                  className={`session-answer answer-${quality}`}
-                  onClick={() => onAnswer(quality)}
-                >
-                  <span>{quality <= 1 ? "Again" : quality === 3 ? "Hard" : quality === 4 ? "Good" : "Easy"}</span>
-                  <strong>
-                    {quality === 1 ? "Reset" : quality === 3 ? "Tough" : quality === 4 ? "Good" : "Easy"}
-                  </strong>
+            {!session.revealed ? (
+              <div className="session-reveal">
+                <div className="session-reveal-copy">
+                  <span className="section-chip">Take a breath</span>
+                  <strong>Hold the prompt for a moment, then reveal the details when you are ready.</strong>
+                  <p>Use this beat to recall the answer first. The ritual feels better when the card does not rush you.</p>
+                </div>
+                <button className="button button-primary" type="button" onClick={onReveal}>
+                  <Wand2 size={16} />
+                  Reveal card details
                 </button>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="session-actions">
+                {[1, 3, 4, 5].map((quality) => (
+                  <button
+                    key={quality}
+                    type="button"
+                    className={`session-answer answer-${quality}`}
+                    onClick={() => onAnswer(quality)}
+                  >
+                    <span>{quality <= 1 ? "Again" : quality === 3 ? "Hard" : quality === 4 ? "Good" : "Easy"}</span>
+                    <strong>
+                      {quality === 1 ? "Reset" : quality === 3 ? "Tough" : quality === 4 ? "Good" : "Easy"}
+                    </strong>
+                  </button>
+                ))}
+              </div>
+            )}
           </>
         ) : null}
       </div>

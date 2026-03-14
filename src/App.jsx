@@ -51,6 +51,7 @@ function App() {
     difficulty: "All difficulty",
   });
   const [libraryMode, setLibraryMode] = useState("work");
+  const [libraryShelf, setLibraryShelf] = useState("all");
   const [sparkles, setSparkles] = useState([]);
   const [session, setSession] = useState({
     open: false,
@@ -58,6 +59,7 @@ function App() {
     queue: [],
     index: 0,
     step: "idle",
+    revealed: false,
     reviewed: [],
     startedAt: 0,
   });
@@ -201,6 +203,15 @@ function App() {
     () => resolveDeckItems(selectedCustomDeck, state.items),
     [selectedCustomDeck, state.items],
   );
+  const favoriteDecks = useMemo(
+    () =>
+      customDecks
+        .filter((deck) => deck.favorite)
+        .map((deck) => hydrateCustomDeck(deck, state.items))
+        .sort((left, right) => right.count - left.count)
+        .slice(0, 3),
+    [customDecks, state.items],
+  );
   const solvedCount = state.game.solvedBlind.length;
   const focusScore = Math.min(
     99,
@@ -227,6 +238,23 @@ function App() {
       return matchesSearch && matchesCategory && matchesDifficulty;
     });
   }, [filters]);
+  const libraryWorkItems = useMemo(() => {
+    if (libraryShelf === "due") return dueItems.slice(0, 16);
+    if (libraryShelf === "deck") return selectedCustomDeckItems.slice(0, 16);
+    if (libraryShelf === "completed") {
+      return state.items.filter((item) => /done|complete/i.test(item.status)).slice(0, 16);
+    }
+    if (libraryShelf === "recent") {
+      return [...state.items]
+        .sort((left, right) => {
+          const rightTime = new Date(right.createdAt || right.srs?.nextReview || 0).getTime();
+          const leftTime = new Date(left.createdAt || left.srs?.nextReview || 0).getTime();
+          return rightTime - leftTime;
+        })
+        .slice(0, 16);
+    }
+    return state.items.slice(0, 16);
+  }, [dueItems, libraryShelf, selectedCustomDeckItems, state.items]);
 
   const currentSessionItem = session.open ? session.queue[session.index] || null : null;
   const sessionProgress = session.queue.length
@@ -258,6 +286,41 @@ function App() {
   ];
   const HeroDeckIcon = getDeckIcon(displayDeck?.name);
   const starterCards = useMemo(() => createStarterContent().items.slice(0, 4), []);
+  const onboardingSteps = useMemo(
+    () => [
+      {
+        id: "ritual",
+        title: "Complete your first ritual",
+        description: state.game.totalReviews
+          ? `${state.game.totalReviews} review${state.game.totalReviews === 1 ? "" : "s"} completed so far.`
+          : "Use the recommended deck to wake up the studio.",
+        done: state.game.totalReviews > 0,
+        action: "Start ritual",
+        view: "home",
+      },
+      {
+        id: "deck",
+        title: "Create a custom deck",
+        description: customDecks.length
+          ? `${customDecks.length} custom deck${customDecks.length === 1 ? "" : "s"} waiting in Deck Garden.`
+          : "Turn one area of work into a dedicated place you can return to.",
+        done: customDecks.length > 0,
+        action: "Open Deck Garden",
+        view: "decks",
+      },
+      {
+        id: "card",
+        title: "Route a card into a deck",
+        description: selectedCustomDeckItems.length
+          ? `${selectedCustomDeckItems.length} card${selectedCustomDeckItems.length === 1 ? "" : "s"} already live in your selected deck.`
+          : "Capture a task or study prompt and assign it somewhere meaningful.",
+        done: selectedCustomDeckItems.length > 0,
+        action: "Open Archive",
+        view: "library",
+      },
+    ],
+    [customDecks.length, selectedCustomDeckItems.length, state.game.totalReviews],
+  );
   const nextRecommendedDeck = useMemo(
     () => allDecks.find((deck) => deck.id !== session.deckId && deck.count > 0) || recommendedDeck,
     [allDecks, recommendedDeck, session.deckId],
@@ -573,6 +636,29 @@ function App() {
     setStatus("Deck archived.");
   }
 
+  function duplicateSelectedDeck() {
+    if (!selectedCustomDeck) return;
+    const duplicate = {
+      ...selectedCustomDeck,
+      id: createId("deck"),
+      name: `${selectedCustomDeck.name} Copy`,
+      favorite: false,
+      createdAt: new Date().toISOString(),
+      lastPlayedAt: "",
+    };
+    setState((current) => ({
+      ...current,
+      decks: [duplicate, ...current.decks],
+      settings: {
+        ...current.settings,
+        selectedCustomDeckId: duplicate.id,
+        activeDeckId: duplicate.id,
+      },
+    }));
+    setStatus(`Duplicated ${selectedCustomDeck.name}.`);
+    launchSparkles(selectedCustomDeck.tone || "blue", 12);
+  }
+
   function selectDeck(deckId) {
     updateSettings({ activeDeckId: deckId });
     const deck = allDecks.find((entry) => entry.id === deckId);
@@ -661,6 +747,7 @@ function App() {
     const starterCopy = {
       ...card,
       id: createId("startercopy"),
+      createdAt: new Date().toISOString(),
       title: card.title,
       category: card.category,
       status: "open",
@@ -751,6 +838,7 @@ function App() {
               source: "blind75",
               notes: "",
               dueDate: "",
+              createdAt: new Date().toISOString(),
               srs: createDefaultSrs(),
             },
             ...current.items,
@@ -802,6 +890,7 @@ function App() {
       queue,
       index: 0,
       step: "intro",
+      revealed: false,
       reviewed: [],
       startedAt: Date.now(),
     });
@@ -828,6 +917,7 @@ function App() {
       queue: [],
       index: 0,
       step: "idle",
+      revealed: false,
       reviewed: [],
       startedAt: 0,
     });
@@ -837,9 +927,18 @@ function App() {
     setSession((current) => ({
       ...current,
       step: "live",
+      revealed: false,
       startedAt: current.startedAt || Date.now(),
     }));
     playTone("pulse");
+  }
+
+  function revealSessionCard() {
+    setSession((current) => ({
+      ...current,
+      revealed: true,
+    }));
+    playTone("soft");
   }
 
   function answerSession(quality) {
@@ -851,6 +950,7 @@ function App() {
     setSession((current) => ({
       ...current,
       reviewed,
+      revealed: false,
       step: hasNext ? "transition" : "complete",
     }));
     if (hasNext) {
@@ -858,6 +958,7 @@ function App() {
         setSession((current) => ({
           ...current,
           index: current.index + 1,
+          revealed: false,
           step: "live",
         }));
       }, 260);
@@ -906,6 +1007,7 @@ function App() {
           progress={sessionProgress}
           nextDeck={nextRecommendedDeck}
           onBegin={beginSession}
+          onReveal={revealSessionCard}
           onAnswer={answerSession}
           onClose={closeSession}
         />
@@ -1003,6 +1105,8 @@ function App() {
               ritualHint={ritualHint}
               focusScore={focusScore}
               customDeckCount={customDecks.length}
+              favoriteDecks={favoriteDecks}
+              onboardingSteps={onboardingSteps}
             />
           ) : null}
 
@@ -1028,6 +1132,7 @@ function App() {
               deckEditForm={deckEditForm}
               setDeckEditForm={setDeckEditForm}
               updateSelectedDeckDetails={updateSelectedDeckDetails}
+              duplicateSelectedDeck={duplicateSelectedDeck}
               selectedCustomDeckItems={selectedCustomDeckItems}
               beginEditDeckCard={beginEditDeckCard}
               removeCardFromSelectedDeck={removeCardFromSelectedDeck}
@@ -1049,6 +1154,12 @@ function App() {
               completeItem={completeItem}
               libraryMode={libraryMode}
               setLibraryMode={setLibraryMode}
+              libraryShelf={libraryShelf}
+              setLibraryShelf={setLibraryShelf}
+              libraryWorkItems={libraryWorkItems}
+              dueItemsCount={dueItems.length}
+              completedCount={completedCount}
+              selectedDeckItemCount={selectedCustomDeckItems.length}
               filters={filters}
               setFilters={setFilters}
               blindCategories={blindCategories}

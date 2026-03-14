@@ -13,7 +13,7 @@ export const defaultState = {
     notifications: false,
     preferAltLinks: false,
     themeMode: "night",
-    ritualTone: "ember",
+    ritualTone: "sun",
     soundEnabled: true,
     soundPack: "studio",
     activeDeckId: "system:today",

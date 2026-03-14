@@ -1,4 +1,4 @@
-import { Archive, FolderPlus, PencilLine, PlusSquare, Sparkles, Trash2, Unlink } from "lucide-react";
+import { Archive, CopyPlus, FolderPlus, PencilLine, PlusSquare, Sparkles, Star, Trash2, Unlink } from "lucide-react";
 import Panel from "../layout/Panel";
 import EmptyState from "../shared/EmptyState";
 import { getSectionAsset } from "../shared/worldAssets";
@@ -27,6 +27,7 @@ function DeckGardenScreen({
   deckEditForm,
   setDeckEditForm,
   updateSelectedDeckDetails,
+  duplicateSelectedDeck,
   selectedCustomDeckItems,
   beginEditDeckCard,
   removeCardFromSelectedDeck,
@@ -92,7 +93,7 @@ function DeckGardenScreen({
                   </div>
                   <div className="deck-meta-strip">
                     <span className={`deck-tone-chip tone-${deck.tone || "sun"}`}>{deck.copy}</span>
-                    {deck.lastPlayedAt ? <span className="deck-meta-note">Recently used</span> : <span className="deck-meta-note">{deck.kind === "system" ? "Smart lane" : "Custom lane"}</span>}
+                    {deck.favorite ? <span className="deck-meta-note">Pinned favorite</span> : deck.lastPlayedAt ? <span className="deck-meta-note">Recently used</span> : <span className="deck-meta-note">{deck.kind === "system" ? "Smart lane" : "Custom lane"}</span>}
                   </div>
                 </button>
               );
@@ -148,6 +149,11 @@ function DeckGardenScreen({
                       <strong>{deck.name}</strong>
                       <span>{hydrated.count} cards • {deck.description}</span>
                     </button>
+                    {deck.favorite ? (
+                      <span className="list-row-pin" aria-label="Favorite deck">
+                        <Star size={14} />
+                      </span>
+                    ) : null}
                     <button className="button button-ghost" type="button" onClick={() => removeDeck(deck.id)}>
                       <Archive size={16} />
                       Archive
@@ -205,9 +211,15 @@ function DeckGardenScreen({
               />
               Favorite this deck
             </label>
-            <button className="button button-primary" type="submit">
-              Save deck settings
-            </button>
+            <div className="settings-action-row">
+              <button className="button button-primary" type="submit">
+                Save deck settings
+              </button>
+              <button className="button button-secondary" type="button" onClick={duplicateSelectedDeck}>
+                <CopyPlus size={16} />
+                Duplicate deck
+              </button>
+            </div>
           </form>
         ) : (
           <EmptyState text="Select a custom deck from above to edit its identity and settings." />

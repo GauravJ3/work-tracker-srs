@@ -1162,12 +1162,17 @@ a {
 
 .onboarding-card {
   display: grid;
-  gap: 0.4rem;
+  gap: 0.8rem;
   margin-top: 1rem;
   padding: 0.95rem 1rem;
   border-radius: 20px;
   border: 1px solid var(--border-default);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.024));
+}
+
+.onboarding-card-head {
+  display: grid;
+  gap: 0.28rem;
 }
 
 .onboarding-card strong {
@@ -1179,6 +1184,80 @@ a {
   color: var(--text-secondary);
   line-height: 1.55;
   font-size: var(--type-body-sm);
+}
+
+.launchpad-list {
+  display: grid;
+  gap: 0.72rem;
+}
+
+.launchpad-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  align-items: center;
+  padding: 0.82rem 0.9rem;
+  border-radius: 18px;
+  border: 1px solid var(--border-default);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.042), rgba(255, 255, 255, 0.018));
+}
+
+.launchpad-row.is-done {
+  border-color: rgba(99, 215, 176, 0.28);
+  background: linear-gradient(180deg, rgba(99, 215, 176, 0.08), rgba(255, 255, 255, 0.018));
+}
+
+.launchpad-copy {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.launchpad-copy strong {
+  font-size: 0.98rem;
+}
+
+.launchpad-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  color: var(--accent-gold-soft);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: var(--type-micro);
+  font-weight: 800;
+}
+
+.launchpad-row.is-done .launchpad-status {
+  color: var(--accent-mint-soft);
+}
+
+.onboarding-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.compact-card-row {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.list-row-pin {
+  width: 2rem;
+  height: 2rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--accent-gold);
+}
+
+.settings-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
 }
 
 .binder-grid .trainer-card,
@@ -1385,6 +1464,10 @@ label {
   margin-bottom: 1rem;
 }
 
+.shelf-switch {
+  margin-bottom: 1rem;
+}
+
 .subview-chip {
   border-radius: 999px;
   border: 1px solid var(--border-default);
@@ -1398,6 +1481,14 @@ label {
 .subview-chip.is-active {
   border-color: var(--border-accent);
   background: rgba(99, 215, 176, 0.12);
+}
+
+.binder-empty {
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  border: 1px dashed var(--border-default);
+  color: var(--text-secondary);
+  line-height: 1.6;
 }
 
 .panel-inline-head {
@@ -1414,7 +1505,7 @@ label {
 
 .list-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 0.8rem;
   padding: 0.8rem;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.024));
@@ -1564,6 +1655,34 @@ label {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.85rem;
+}
+
+.session-reveal {
+  margin-top: 1.1rem;
+  display: grid;
+  gap: 0.95rem;
+  padding: 1rem;
+  border-radius: 24px;
+  border: 1px solid var(--border-default);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+}
+
+.session-reveal-copy {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.session-reveal-copy strong {
+  font-family: var(--font-display);
+  font-size: var(--type-h2);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+
+.session-reveal-copy p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.7;
 }
 
 .session-answer {
@@ -1774,6 +1893,15 @@ label {
     grid-template-columns: 1fr;
   }
 
+  .launchpad-row {
+    grid-template-columns: 1fr;
+  }
+
+  .onboarding-meta {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .list-row .button {
     width: 100%;
   }
@@ -1834,6 +1962,10 @@ label {
   .button,
   .subview-chip {
     width: 100%;
+  }
+
+  .settings-action-row {
+    flex-direction: column;
   }
 
   .hero-actions {
@@ -1978,6 +2110,10 @@ label {
     width: 100%;
   }
 
+  .launchpad-row {
+    grid-template-columns: 1fr;
+  }
+
   .session-card-frame .trainer-card {
     width: 100%;
   }
@@ -2048,6 +2184,11 @@ label {
   .subview-switch {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .onboarding-meta {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .active-deck-chip {

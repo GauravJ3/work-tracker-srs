@@ -70,6 +70,7 @@ export function rowsToItems(rows, source = "sheet") {
         dueDate: dueDate.trim(),
         notes: notes.trim(),
         source,
+        createdAt: new Date().toISOString(),
         srs: createDefaultSrs(),
       },
     ];
@@ -101,6 +102,7 @@ export function createManualItem({ title, category }) {
     source: "manual",
     notes: "",
     dueDate: "",
+    createdAt: new Date().toISOString(),
     srs: createDefaultSrs(),
   };
 }

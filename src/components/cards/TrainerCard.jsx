@@ -20,18 +20,23 @@ function variantTone(variant, item) {
   return difficultyTone(item.difficulty || "Medium");
 }
 
-function TrainerCard({ item, badge, footer, variant = "work", className = "" }) {
+function TrainerCard({ item, badge, footer, variant = "work", className = "", reveal = true }) {
   const tone = variantTone(variant, item);
-  const dueText = item.dueDate ? item.dueDate : item.srs?.nextReview || "-";
+  const dueText =
+    variant === "session" && !reveal ? "Focus" : item.dueDate ? item.dueDate : item.srs?.nextReview || "-";
   const statusLabel =
-    variant === "deck"
+    variant === "session" && !reveal
+      ? "Keep the answer in mind before you reveal the rest of the card."
+      : variant === "deck"
       ? item.description || item.copy || "Ready for a clean focused run."
       : item.status;
   const recallLabel =
-    variant === "blind"
+    variant === "session" && !reveal
+      ? "Reveal when ready"
+      : variant === "blind"
       ? item.difficulty || "Medium"
       : variant === "session"
-        ? "Single-card ritual focus"
+        ? item.notes || "Single-card ritual focus"
         : `${item.srs?.interval || 0} day interval`;
 
   return (

@@ -17,6 +17,12 @@ function ArchiveScreen({
   completeItem,
   libraryMode,
   setLibraryMode,
+  libraryShelf,
+  setLibraryShelf,
+  libraryWorkItems,
+  dueItemsCount,
+  completedCount,
+  selectedDeckItemCount,
   filters,
   setFilters,
   blindCategories,
@@ -61,6 +67,24 @@ function ArchiveScreen({
 
         {libraryMode === "work" ? (
           <>
+            <div className="subview-switch shelf-switch">
+              {[
+                ["all", `All cards (${state.items.length})`],
+                ["recent", "Recent"],
+                ["due", `Needs review (${dueItemsCount})`],
+                ["deck", `In selected deck (${selectedDeckItemCount})`],
+                ["completed", `Completed (${completedCount})`],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={`subview-chip ${libraryShelf === value ? "is-active" : ""}`}
+                  onClick={() => setLibraryShelf(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <form className="quick-add" onSubmit={addManualTask}>
               <input
                 placeholder="Task or topic"
@@ -78,7 +102,7 @@ function ArchiveScreen({
               </button>
             </form>
             <div className="card-row binder-grid">
-              {state.items.slice(0, 16).map((item) => {
+              {libraryWorkItems.map((item) => {
                 const done = /done|complete/i.test(item.status);
                 const inDeck = selectedCustomDeck?.itemIds.includes(item.id);
                 return (
@@ -124,6 +148,11 @@ function ArchiveScreen({
                 );
               })}
             </div>
+            {!libraryWorkItems.length ? (
+              <div className="binder-empty">
+                Nothing in this shelf yet. Try `Recent`, switch decks, or add a fresh card above.
+              </div>
+            ) : null}
           </>
         ) : null}
 

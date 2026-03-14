@@ -1,4 +1,4 @@
-import { Archive, Play } from "lucide-react";
+import { Archive, ArrowRight, CheckCircle2, Play, Sparkles, Wand2 } from "lucide-react";
 import Panel from "../layout/Panel";
 import MetricBadge from "../shared/MetricBadge";
 import EmptyState from "../shared/EmptyState";
@@ -20,6 +20,8 @@ function SanctuaryScreen({
   ritualHint,
   focusScore,
   customDeckCount,
+  favoriteDecks,
+  onboardingSteps,
 }) {
   const SanctuaryIcon = getScreenIcon("Sanctuary");
   const SanctuaryMedia = getSectionAsset("Sanctuary");
@@ -59,14 +61,47 @@ function SanctuaryScreen({
                 Explore decks
               </button>
             </div>
-            {state.game.totalReviews < 5 ? (
-              <div className="onboarding-card">
-                <strong>Getting Started</strong>
-                <span>{state.items.length ? "Starter cards are ready." : "Add your first cards."}</span>
-                <span>{customDeckCount ? `${customDeckCount} custom deck${customDeckCount === 1 ? "" : "s"} created.` : "Create one custom deck in Deck Garden."}</span>
-                <span>{state.game.totalReviews ? `${state.game.totalReviews} review${state.game.totalReviews === 1 ? "" : "s"} completed.` : "Complete your first ritual to wake up the studio."}</span>
+            <div className="onboarding-card">
+              <div className="onboarding-card-head">
+                <strong>{state.game.totalReviews < 5 ? "Launchpad" : "Momentum Check"}</strong>
+                <span>{state.items.length ? "Starter cards are already waiting for you." : "The studio is quiet until you add the first card."}</span>
               </div>
-            ) : null}
+              <div className="launchpad-list">
+                {onboardingSteps.map((step) => (
+                  <article className={`launchpad-row ${step.done ? "is-done" : ""}`} key={step.id}>
+                    <div className="launchpad-copy">
+                      <span className="launchpad-status">
+                        {step.done ? <CheckCircle2 size={14} /> : <Sparkles size={14} />}
+                        {step.done ? "Complete" : "Next step"}
+                      </span>
+                      <strong>{step.title}</strong>
+                      <span>{step.description}</span>
+                    </div>
+                    <button
+                      className="button button-ghost is-compact"
+                      type="button"
+                      onClick={() => {
+                        if (step.id === "ritual") {
+                          startSession(activeDeck);
+                          return;
+                        }
+                        setView(step.view);
+                      }}
+                    >
+                      {step.action}
+                      <ArrowRight size={15} />
+                    </button>
+                  </article>
+                ))}
+              </div>
+              <div className="onboarding-meta">
+                <span>{customDeckCount ? `${customDeckCount} custom deck${customDeckCount === 1 ? "" : "s"} shaped so far.` : "Create one custom deck to make the space feel yours."}</span>
+                <button className="button button-secondary is-compact" type="button" onClick={() => setView("decks")}>
+                  <Wand2 size={15} />
+                  Open deck studio
+                </button>
+              </div>
+            </div>
           </div>
           <div className="portal-grid">
             {portals.map((portal) => (
@@ -118,6 +153,39 @@ function SanctuaryScreen({
           )}
         </div>
       </Panel>
+
+      {favoriteDecks.length ? (
+        <Panel
+          title="Pinned Paths"
+          subtitle="Your favorite decks stay close to Sanctuary so returning feels effortless."
+          action={<span className="section-chip">{favoriteDecks.length} pinned</span>}
+        >
+          <div className="card-row compact-card-row">
+            {favoriteDecks.map((deck) => (
+              <TrainerCard
+                key={deck.id}
+                item={{
+                  title: deck.name,
+                  category: "Favorite Deck",
+                  description: deck.copy,
+                  dueDate: `${deck.count} cards`,
+                  status: deck.mood,
+                  tone: deck.tone,
+                  srs: { interval: deck.estimatedMinutes || 2 },
+                }}
+                variant="deck"
+                badge="Pinned"
+                footer={
+                  <button className="button button-primary is-compact" type="button" onClick={() => startSession(deck)}>
+                    <Play size={16} />
+                    Enter
+                  </button>
+                }
+              />
+            ))}
+          </div>
+        </Panel>
+      ) : null}
 
       <Panel
         title="Campfire"
