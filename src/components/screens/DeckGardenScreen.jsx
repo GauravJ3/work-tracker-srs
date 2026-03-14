@@ -1,6 +1,7 @@
 import { Archive, FolderPlus } from "lucide-react";
 import Panel from "../layout/Panel";
 import EmptyState from "../shared/EmptyState";
+import { getSectionAsset } from "../shared/worldAssets";
 import { getDeckIcon, getScreenIcon } from "../shared/worldIcons";
 import TrainerCardHeader from "../cards/TrainerCardHeader";
 import { deckSigil } from "../cards/TrainerCard";
@@ -22,6 +23,7 @@ function DeckGardenScreen({
   removeDeck,
 }) {
   const DeckGardenIcon = getScreenIcon("Deck Garden");
+  const DeckGardenMedia = getSectionAsset("Deck Garden");
 
   return (
     <div className="screen-grid">
@@ -29,6 +31,7 @@ function DeckGardenScreen({
         title="Deck Garden"
         subtitle="Choose a ritual mood, then grow your own decks beside the smart ones."
         icon={DeckGardenIcon}
+        media={DeckGardenMedia}
         action={<span className="section-chip">{allDecks.length} total decks</span>}
       >
         <div className="theme-picker">

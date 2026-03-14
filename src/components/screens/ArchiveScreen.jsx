@@ -1,5 +1,6 @@
 import { CheckCircle2, ExternalLink, FolderPlus } from "lucide-react";
 import Panel from "../layout/Panel";
+import { getSectionAsset } from "../shared/worldAssets";
 import { getDeckIcon, getScreenIcon } from "../shared/worldIcons";
 import TrainerCard from "../cards/TrainerCard";
 import TrainerCardHeader from "../cards/TrainerCardHeader";
@@ -24,6 +25,7 @@ function ArchiveScreen({
   toggleSolved,
 }) {
   const ArchiveIcon = getScreenIcon("Archive");
+  const ArchiveMedia = getSectionAsset("Archive");
   const SelectedDeckIcon = getDeckIcon(selectedCustomDeck?.name);
 
   return (
@@ -32,6 +34,7 @@ function ArchiveScreen({
         title="Archive"
         subtitle="Browse, refine, and route cards into the right deck."
         icon={ArchiveIcon}
+        media={ArchiveMedia}
         action={<span className="section-chip">{state.items.length} cards</span>}
       >
         {selectedCustomDeck ? (

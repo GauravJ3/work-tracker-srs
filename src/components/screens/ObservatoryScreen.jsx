@@ -1,6 +1,7 @@
 import { Bell, RefreshCw, Upload } from "lucide-react";
 import Panel from "../layout/Panel";
 import EmptyState from "../shared/EmptyState";
+import { getSectionAsset } from "../shared/worldAssets";
 import { getScreenIcon } from "../shared/worldIcons";
 
 function ObservatoryScreen({
@@ -13,6 +14,7 @@ function ObservatoryScreen({
   enableNotifications,
 }) {
   const ObservatoryIcon = getScreenIcon("Observatory");
+  const ObservatoryMedia = getSectionAsset("Observatory");
 
   return (
     <div className="screen-grid">
@@ -20,6 +22,7 @@ function ObservatoryScreen({
         title="Observatory"
         subtitle="Quiet controls for how this world sounds, syncs, and stays with you."
         icon={ObservatoryIcon}
+        media={ObservatoryMedia}
         action={<span className="section-chip">Live</span>}
       >
         <div className="two-column">

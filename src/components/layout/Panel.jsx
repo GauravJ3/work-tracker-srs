@@ -1,4 +1,4 @@
-function Panel({ title, subtitle, action, icon: Icon, children }) {
+function Panel({ title, subtitle, action, icon: Icon, media, children }) {
   return (
     <section className="panel">
       <div className="panel-head">
@@ -13,7 +13,14 @@ function Panel({ title, subtitle, action, icon: Icon, children }) {
           </div>
           <p>{subtitle}</p>
         </div>
-        {action}
+        <div className="panel-side">
+          {media ? (
+            <div className="panel-media" aria-hidden="true">
+              <img src={media.src} alt={media.alt} loading="lazy" />
+            </div>
+          ) : null}
+          {action}
+        </div>
       </div>
       {children}
     </section>

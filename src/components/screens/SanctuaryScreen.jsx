@@ -2,6 +2,7 @@ import { Archive, Play } from "lucide-react";
 import Panel from "../layout/Panel";
 import MetricBadge from "../shared/MetricBadge";
 import EmptyState from "../shared/EmptyState";
+import { getSectionAsset } from "../shared/worldAssets";
 import { getDeckIcon, getScreenIcon } from "../shared/worldIcons";
 import TrainerCard from "../cards/TrainerCard";
 
@@ -19,6 +20,8 @@ function SanctuaryScreen({
   focusScore,
 }) {
   const SanctuaryIcon = getScreenIcon("Sanctuary");
+  const SanctuaryMedia = getSectionAsset("Sanctuary");
+  const CampfireMedia = getSectionAsset("Campfire");
   const ActiveDeckIcon = getDeckIcon(activeDeck?.name);
 
   return (
@@ -27,6 +30,7 @@ function SanctuaryScreen({
         title="Sanctuary"
         subtitle="Start here, choose one path, and let everything else stay quiet."
         icon={SanctuaryIcon}
+        media={SanctuaryMedia}
         action={<span className="section-chip">{activeDeck?.count || 0} cards in focus</span>}
       >
         <div className="world-intro">
@@ -107,6 +111,7 @@ function SanctuaryScreen({
       <Panel
         title="Campfire"
         subtitle="Just enough signal to keep your rhythm."
+        media={CampfireMedia}
         action={<span className="section-chip">{state.game.unlocked.length} unlocked</span>}
       >
         <div className="metrics-strip">
