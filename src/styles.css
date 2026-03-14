@@ -5,7 +5,7 @@
   --panel-strong: rgba(12, 22, 34, 0.9);
   --panel-elevated: rgba(18, 30, 44, 0.92);
   --text: #edf4fb;
-  --muted: #9eb0c1;
+  --muted: #b8c7d6;
   --line: rgba(180, 210, 235, 0.12);
   --line-strong: rgba(180, 210, 235, 0.22);
   --mint: #7cf1d4;
@@ -464,6 +464,43 @@ a {
   grid-template-columns: minmax(0, 1.55fr) minmax(340px, 0.88fr);
 }
 
+.view-switcher {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.view-pill {
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 0.8rem 1rem;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.view-pill.is-active {
+  background: rgba(124, 241, 212, 0.14);
+  border-color: rgba(124, 241, 212, 0.38);
+}
+
+.staged-grid {
+  animation: revealStage 260ms ease;
+}
+
+@keyframes revealStage {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .column-main,
 .column-side {
   display: grid;
@@ -473,6 +510,7 @@ a {
 .studio-card {
   border-radius: 30px;
   padding: 1.2rem;
+  background: color-mix(in srgb, var(--panel) 92%, black 8%);
 }
 
 .studio-head {
@@ -701,6 +739,26 @@ textarea {
   flex-wrap: wrap;
 }
 
+.compact-shelf .deck-card {
+  flex-basis: 16rem;
+  min-height: 10.8rem;
+}
+
+.reveal-card {
+  animation: revealCard 320ms ease;
+}
+
+@keyframes revealCard {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .ritual-card,
 .library-card {
   flex: 1 1 16rem;
@@ -748,9 +806,14 @@ textarea {
 
 input,
 select,
-textarea,
-.button {
+textarea {
   width: 100%;
+  min-height: 3rem;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+}
+
+.button {
   min-height: 3rem;
   border-radius: 18px;
   border: 1px solid var(--line);
@@ -800,6 +863,7 @@ label {
   background: rgba(255, 255, 255, 0.03);
   cursor: pointer;
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  width: auto;
 }
 
 .button-primary {
@@ -947,6 +1011,22 @@ label {
   color: var(--muted);
 }
 
+.side-summary {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.soft-note {
+  margin-top: 1rem;
+  color: var(--muted);
+  line-height: 1.7;
+  padding: 1rem;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+}
+
 @media (max-width: 1180px) {
   .cinema-hero,
   .studio-grid,
@@ -970,7 +1050,8 @@ label {
 
   .stage-grid,
   .momentum-grid,
-  .session-actions {
+  .session-actions,
+  .side-summary {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -993,7 +1074,8 @@ label {
 
   .stage-grid,
   .momentum-grid,
-  .session-actions {
+  .session-actions,
+  .side-summary {
     grid-template-columns: 1fr;
   }
 

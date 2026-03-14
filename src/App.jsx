@@ -47,6 +47,7 @@ function App() {
     category: "All categories",
     difficulty: "All difficulty",
   });
+  const [activeView, setActiveView] = useState("today");
   const [sparkles, setSparkles] = useState([]);
   const [session, setSession] = useState({
     open: false,
@@ -710,213 +711,357 @@ function App() {
           </div>
         </section>
 
-        <section className="studio-grid">
-          <div className="column-main">
-            <StudioCard
-              title="Deck Atelier"
-              subtitle="Smart decks for now, custom decks for how you want to work."
-              action={<span className="section-chip">{allDecks.length} decks</span>}
+        <div className="view-switcher" role="tablist" aria-label="Workspace views">
+          {[
+            ["today", "Today"],
+            ["decks", "Decks"],
+            ["library", "Library"],
+            ["settings", "Settings"],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={activeView === id}
+              className={`view-pill ${activeView === id ? "is-active" : ""}`}
+              onClick={() => setActiveView(id)}
             >
-              <div className="tone-switcher">
-                {ritualTones.map((tone) => (
-                  <button
-                    key={tone.id}
-                    className={`tone-pill ${selectedTone === tone.id ? "is-active" : ""}`}
-                    onClick={() => updateSettings({ ritualTone: tone.id })}
-                  >
-                    <strong>{tone.name}</strong>
-                    <span>{tone.copy}</span>
-                  </button>
-                ))}
-              </div>
+              {label}
+            </button>
+          ))}
+        </div>
 
-              <div className="deck-shelf">
-                {allDecks.map((deck) => (
-                  <button
-                    key={deck.id}
-                    className={`deck-card deck-${deck.tone || "ember"} ${selectedDeckId === deck.id ? "is-selected" : ""}`}
-                    onClick={() => selectDeck(deck.id)}
-                  >
-                    <div className="deck-card-head">
-                      <span>{deck.kind === "custom" ? "Custom deck" : "Smart deck"}</span>
-                      <span>{deck.count} cards</span>
+        <section className="studio-grid staged-grid">
+          <div className="column-main">
+            {activeView === "today" ? (
+              <>
+                <StudioCard
+                  title="Today"
+                  subtitle="One deck, one queue, one clean next step."
+                  action={
+                    <div className="queue-actions">
+                      <span className="section-chip">{activeDeckItems.length} cards</span>
+                      <button className="button button-primary" type="button" onClick={() => startSession(activeDeck)}>
+                        Start session
+                      </button>
                     </div>
-                    <strong>{deck.name}</strong>
-                    <p>{deck.description}</p>
-                    <div className="deck-card-foot">
-                      <span>{deck.copy}</span>
+                  }
+                >
+                  <div className="deck-shelf compact-shelf">
+                    {allDecks.slice(0, 6).map((deck) => (
+                      <button
+                        key={deck.id}
+                        type="button"
+                        className={`deck-card deck-${deck.tone || "ember"} ${selectedDeckId === deck.id ? "is-selected" : ""}`}
+                        onClick={() => selectDeck(deck.id)}
+                      >
+                        <div className="deck-card-head">
+                          <span>{deck.kind === "custom" ? "Custom deck" : "Smart deck"}</span>
+                          <span>{deck.count} cards</span>
+                        </div>
+                        <strong>{deck.name}</strong>
+                        <p>{deck.copy}</p>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="queue-preview">
+                    {activeDeckItems.length ? (
+                      activeDeckItems.slice(0, 4).map((item, index) => (
+                        <article className="ritual-card reveal-card" key={item.id}>
+                          <div className="ritual-card-head">
+                            <span>Card {String(index + 1).padStart(2, "0")}</span>
+                            <span>{item.category}</span>
+                          </div>
+                          <strong>{item.title}</strong>
+                          <p>
+                            {item.dueDate
+                              ? `${formatRelative(item.dueDate)} deadline`
+                              : `Next review ${formatDate(item.srs.nextReview)}`}
+                          </p>
+                        </article>
+                      ))
+                    ) : (
+                      <EmptyState text="This deck is empty. Switch decks or add cards from the library." />
+                    )}
+                  </div>
+                </StudioCard>
+
+                <StudioCard
+                  title="Momentum"
+                  subtitle="Only the essentials for today."
+                  action={<span className="section-chip">{state.game.unlocked.length} unlocked</span>}
+                >
+                  <div className="momentum-panel">
+                    <div className="momentum-meter">
+                      <span>Level {state.game.level}</span>
+                      <strong>{state.game.xp} XP</strong>
+                      <div className="progress-track">
+                        <span style={{ width: `${levelProgress}%` }} />
+                      </div>
                     </div>
-                  </button>
-                ))}
-              </div>
-
-              <div className="atelier-grid">
-                <form className="deck-builder" onSubmit={createDeck}>
-                  <div className="subhead">
-                    <h3>Create Custom Deck</h3>
-                    <span>{selectedCustomDeck ? `Editing shelf: ${selectedCustomDeck.name}` : "Start a new shelf"}</span>
+                    <div className="momentum-grid">
+                      <MetricCell label="Due" value={dueItems.length} />
+                      <MetricCell label="Streak" value={`${state.game.streak}d`} />
+                      <MetricCell label="Coins" value={state.game.coins} />
+                      <MetricCell label="Solved" value={`${solvedCount}/75`} />
+                    </div>
                   </div>
-                  <input
-                    placeholder="Deck name"
-                    value={deckForm.name}
-                    onChange={(event) => setDeckForm((current) => ({ ...current, name: event.target.value }))}
-                  />
-                  <textarea
-                    rows="3"
-                    placeholder="Short mood or intent for this ritual"
-                    value={deckForm.description}
-                    onChange={(event) =>
-                      setDeckForm((current) => ({ ...current, description: event.target.value }))
-                    }
-                  />
-                  <button className="button button-primary" type="submit">
-                    Create deck
-                  </button>
-                </form>
+                </StudioCard>
+              </>
+            ) : null}
 
-                <div className="deck-manager">
-                  <div className="subhead">
-                    <h3>Custom Shelf</h3>
-                    <span>{customDecks.length} saved</span>
+            {activeView === "decks" ? (
+              <StudioCard
+                title="Deck Atelier"
+                subtitle="Choose a tone, build a custom deck, and keep the rest out of the way."
+                action={<span className="section-chip">{allDecks.length} decks</span>}
+              >
+                <div className="tone-switcher">
+                  {ritualTones.map((tone) => (
+                    <button
+                      key={tone.id}
+                      type="button"
+                      className={`tone-pill ${selectedTone === tone.id ? "is-active" : ""}`}
+                      onClick={() => updateSettings({ ritualTone: tone.id })}
+                    >
+                      <strong>{tone.name}</strong>
+                      <span>{tone.copy}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="deck-shelf">
+                  {allDecks.map((deck) => (
+                    <button
+                      key={deck.id}
+                      type="button"
+                      className={`deck-card deck-${deck.tone || "ember"} ${selectedDeckId === deck.id ? "is-selected" : ""}`}
+                      onClick={() => selectDeck(deck.id)}
+                    >
+                      <div className="deck-card-head">
+                        <span>{deck.kind === "custom" ? "Custom deck" : "Smart deck"}</span>
+                        <span>{deck.count} cards</span>
+                      </div>
+                      <strong>{deck.name}</strong>
+                      <p>{deck.description}</p>
+                      <div className="deck-card-foot">
+                        <span>{deck.copy}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="atelier-grid">
+                  <form className="deck-builder" onSubmit={createDeck}>
+                    <div className="subhead">
+                      <h3>Create Custom Deck</h3>
+                      <span>{selectedCustomDeck ? `Selected: ${selectedCustomDeck.name}` : "Start a new shelf"}</span>
+                    </div>
+                    <input
+                      placeholder="Deck name"
+                      value={deckForm.name}
+                      onChange={(event) => setDeckForm((current) => ({ ...current, name: event.target.value }))}
+                    />
+                    <textarea
+                      rows="3"
+                      placeholder="Short mood or intent for this ritual"
+                      value={deckForm.description}
+                      onChange={(event) =>
+                        setDeckForm((current) => ({ ...current, description: event.target.value }))
+                      }
+                    />
+                    <button className="button button-primary" type="submit">
+                      Create deck
+                    </button>
+                  </form>
+
+                  <div className="deck-manager">
+                    <div className="subhead">
+                      <h3>Custom Shelf</h3>
+                      <span>{customDecks.length} saved</span>
+                    </div>
+                    <div className="custom-deck-list">
+                      {customDecks.length ? (
+                        customDecks.map((deck) => {
+                          const hydrated = hydrateCustomDeck(deck, state.items);
+                          const isEditing = selectedCustomDeck?.id === deck.id;
+                          return (
+                            <article className={`custom-deck-row ${isEditing ? "is-editing" : ""}`} key={deck.id}>
+                              <button type="button" className="custom-deck-main" onClick={() => selectDeck(deck.id)}>
+                                <strong>{deck.name}</strong>
+                                <span>{hydrated.count} cards • {deck.description}</span>
+                              </button>
+                              <div className="custom-deck-actions">
+                                <button
+                                  className="button button-ghost"
+                                  type="button"
+                                  onClick={() => updateSettings({ selectedCustomDeckId: deck.id, activeDeckId: deck.id })}
+                                >
+                                  Select
+                                </button>
+                                <button className="button button-ghost" type="button" onClick={() => removeDeck(deck.id)}>
+                                  Archive
+                                </button>
+                              </div>
+                            </article>
+                          );
+                        })
+                      ) : (
+                        <EmptyState text="No custom decks yet. Build one for interview prep, writing, or a daily ritual." />
+                      )}
+                    </div>
                   </div>
-                  <div className="custom-deck-list">
-                    {customDecks.length ? (
-                      customDecks.map((deck) => {
-                        const hydrated = hydrateCustomDeck(deck, state.items);
-                        const isEditing = selectedCustomDeck?.id === deck.id;
+                </div>
+              </StudioCard>
+            ) : null}
+
+            {activeView === "library" ? (
+              <>
+                <StudioCard
+                  title="Tracked Library"
+                  subtitle="Add cards, complete tasks, and route them into your selected custom deck."
+                  action={<span className="section-chip">{state.items.length} tracked cards</span>}
+                >
+                  <div className="quick-add-panel">
+                    <form className="quick-form wide" onSubmit={addManualTask}>
+                      <input
+                        placeholder="Task or topic"
+                        value={itemForm.title}
+                        onChange={(event) => setItemForm((current) => ({ ...current, title: event.target.value }))}
+                      />
+                      <input
+                        placeholder="Category"
+                        value={itemForm.category}
+                        onChange={(event) => setItemForm((current) => ({ ...current, category: event.target.value }))}
+                      />
+                      <button className="button button-primary" type="submit">
+                        Add card
+                      </button>
+                    </form>
+                  </div>
+
+                  <div className="library-grid">
+                    {state.items.length ? (
+                      state.items.slice(0, 18).map((item) => {
+                        const done = /done|complete/i.test(item.status);
+                        const inSelectedDeck = selectedCustomDeck?.itemIds.includes(item.id);
                         return (
-                          <article className={`custom-deck-row ${isEditing ? "is-editing" : ""}`} key={deck.id}>
-                            <button className="custom-deck-main" onClick={() => selectDeck(deck.id)}>
-                              <strong>{deck.name}</strong>
-                              <span>{hydrated.count} cards • {deck.description}</span>
-                            </button>
-                            <div className="custom-deck-actions">
-                              <button
-                                className="button button-ghost"
-                                onClick={() => updateSettings({ selectedCustomDeckId: deck.id, activeDeckId: deck.id })}
-                              >
-                                Edit
-                              </button>
-                              <button className="button button-ghost" onClick={() => removeDeck(deck.id)}>
-                                Archive
-                              </button>
+                          <article className={`library-card reveal-card ${done ? "is-complete" : ""}`} key={item.id}>
+                            <div className="library-card-head">
+                              <span>{item.category}</span>
+                              <span>{item.source}</span>
+                            </div>
+                            <strong>{item.title}</strong>
+                            <p>
+                              {item.dueDate ? formatRelative(item.dueDate) : `Next review ${formatDate(item.srs.nextReview)}`}
+                            </p>
+                            <div className="library-card-actions">
+                              {!done ? (
+                                <button className="button button-ghost" type="button" onClick={() => completeItem(item.id)}>
+                                  Complete
+                                </button>
+                              ) : null}
+                              {selectedCustomDeck ? (
+                                inSelectedDeck ? (
+                                  <button
+                                    className="button button-ghost"
+                                    type="button"
+                                    onClick={() => removeTrackedItemFromDeck(selectedCustomDeck.id, item.id)}
+                                  >
+                                    Remove from deck
+                                  </button>
+                                ) : (
+                                  <button
+                                    className="button button-ghost"
+                                    type="button"
+                                    onClick={() => addTrackedItemToDeck(selectedCustomDeck.id, item.id)}
+                                  >
+                                    Add to deck
+                                  </button>
+                                )
+                              ) : null}
                             </div>
                           </article>
                         );
                       })
                     ) : (
-                      <EmptyState text="No custom decks yet. Build one for interview prep, writing, or a daily ritual." />
+                      <EmptyState text="No tracked cards yet. Sync a sheet, import CSV, or add a manual card to begin." />
                     )}
                   </div>
-                </div>
-              </div>
-            </StudioCard>
+                </StudioCard>
 
-            <StudioCard
-              title="Ritual Queue"
-              subtitle="A calmer preview of what the selected deck will feel like."
-              action={
-                <div className="queue-actions">
-                  <span className="section-chip">{activeDeckItems.length} cards</span>
-                  <button className="button button-primary" onClick={() => startSession(activeDeck)}>
-                    Start session
-                  </button>
-                </div>
-              }
-            >
-              <div className="queue-preview">
-                {activeDeckItems.length ? (
-                  activeDeckItems.slice(0, 4).map((item, index) => (
-                    <article className="ritual-card" key={item.id}>
-                      <div className="ritual-card-head">
-                        <span>Card {String(index + 1).padStart(2, "0")}</span>
-                        <span>{item.category}</span>
-                      </div>
-                      <strong>{item.title}</strong>
-                      <p>
-                        {item.dueDate ? `${formatRelative(item.dueDate)} deadline` : `Next review ${formatDate(item.srs.nextReview)}`}
-                      </p>
-                    </article>
-                  ))
-                ) : (
-                  <EmptyState text="This deck is empty. Add cards from the library below or switch to another deck." />
-                )}
-              </div>
-            </StudioCard>
+                <StudioCard
+                  title="Blind Card Library"
+                  subtitle="Browse a smaller slice of practice cards and send them into your workflow."
+                  action={<span className="section-chip">{filteredBlind.length} visible</span>}
+                >
+                  <div className="filters-column">
+                    <input
+                      placeholder="Search prompts"
+                      value={filters.search}
+                      onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+                    />
+                    <select
+                      value={filters.category}
+                      onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}
+                    >
+                      {blindCategories.map((option) => (
+                        <option key={option}>{option}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={filters.difficulty}
+                      onChange={(event) => setFilters((current) => ({ ...current, difficulty: event.target.value }))}
+                    >
+                      {["All difficulty", "Easy", "Medium", "Hard"].map((option) => (
+                        <option key={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
 
-            <StudioCard
-              title="Tracked Library"
-              subtitle="All captured work cards. Route them into your custom decks."
-              action={<span className="section-chip">{state.items.length} tracked cards</span>}
-            >
-              <div className="quick-add-panel">
-                <form className="quick-form wide" onSubmit={addManualTask}>
-                  <input
-                    placeholder="Task or topic"
-                    value={itemForm.title}
-                    onChange={(event) => setItemForm((current) => ({ ...current, title: event.target.value }))}
-                  />
-                  <input
-                    placeholder="Category"
-                    value={itemForm.category}
-                    onChange={(event) => setItemForm((current) => ({ ...current, category: event.target.value }))}
-                  />
-                  <button className="button button-primary" type="submit">
-                    Add card
-                  </button>
-                </form>
-              </div>
-
-              <div className="library-grid">
-                {state.items.length ? (
-                  state.items.slice(0, 18).map((item) => {
-                    const done = /done|complete/i.test(item.status);
-                    const inSelectedDeck = selectedCustomDeck?.itemIds.includes(item.id);
-                    return (
-                      <article className={`library-card ${done ? "is-complete" : ""}`} key={item.id}>
-                        <div className="library-card-head">
-                          <span>{item.category}</span>
-                          <span>{item.source}</span>
-                        </div>
-                        <strong>{item.title}</strong>
-                        <p>
-                          {item.dueDate ? formatRelative(item.dueDate) : `Next review ${formatDate(item.srs.nextReview)}`}
-                        </p>
-                        <div className="library-card-actions">
-                          {!done ? (
-                            <button className="button button-ghost" onClick={() => completeItem(item.id)}>
-                              Complete
+                  <div className="blind-library">
+                    {filteredBlind.slice(0, 10).map((item) => {
+                      const tracked = state.items.some((entry) => entry.blindId === item.id);
+                      const solved = state.game.solvedBlind.includes(item.id);
+                      const href = item.premium && state.settings.preferAltLinks ? item.alt : item.link;
+                      return (
+                        <article className={`blind-library-card reveal-card ${solved ? "is-solved" : ""}`} key={item.id}>
+                          <div className="blind-card-top">
+                            <span>{item.category}</span>
+                            <span>{item.difficulty}</span>
+                          </div>
+                          <strong>
+                            <a href={href} target="_blank" rel="noreferrer">
+                              {item.title}
+                            </a>
+                          </strong>
+                          <p>{solved ? "Solved and logged." : tracked ? "Tracked in your library." : "Ready to route."}</p>
+                          <div className="blind-actions">
+                            <button className="button button-ghost" type="button" onClick={() => addBlindItem(item)}>
+                              {tracked ? "Track again" : "Track card"}
                             </button>
-                          ) : null}
-                          {selectedCustomDeck ? (
-                            inSelectedDeck ? (
-                              <button
-                                className="button button-ghost"
-                                onClick={() => removeTrackedItemFromDeck(selectedCustomDeck.id, item.id)}
-                              >
-                                Remove from {selectedCustomDeck.name}
+                            {selectedCustomDeck ? (
+                              <button className="button button-ghost" type="button" onClick={() => addBlindItem(item, selectedCustomDeck.id)}>
+                                Add to deck
                               </button>
-                            ) : (
-                              <button
-                                className="button button-ghost"
-                                onClick={() => addTrackedItemToDeck(selectedCustomDeck.id, item.id)}
-                              >
-                                Add to {selectedCustomDeck.name}
-                              </button>
-                            )
-                          ) : null}
-                        </div>
-                      </article>
-                    );
-                  })
-                ) : (
-                  <EmptyState text="No tracked cards yet. Sync a sheet, import CSV, or add a manual card to begin." />
-                )}
-              </div>
-            </StudioCard>
+                            ) : null}
+                            <button className="button button-primary" type="button" disabled={solved} onClick={() => toggleSolved(item.id)}>
+                              {solved ? "Solved" : "Mark solved"}
+                            </button>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </StudioCard>
+              </>
+            ) : null}
           </div>
 
           <aside className="column-side">
+            {activeView === "settings" ? (
+              <>
             <StudioCard
               title="Control Deck"
               subtitle="Inputs, sync, reminders, and ambient trainer settings."
@@ -973,13 +1118,13 @@ function App() {
               </div>
 
               <div className="action-stack">
-                <button className="button button-primary" onClick={() => syncFromSheet(false)}>
+                <button className="button button-primary" type="button" onClick={() => syncFromSheet(false)}>
                   Sync from sheet
                 </button>
-                <button className="button button-secondary" onClick={() => fileRef.current?.click()}>
+                <button className="button button-secondary" type="button" onClick={() => fileRef.current?.click()}>
                   Import CSV
                 </button>
-                <button className="button button-ghost" onClick={enableNotifications}>
+                <button className="button button-ghost" type="button" onClick={enableNotifications}>
                   Enable notifications
                 </button>
                 <label className="toggle-row">
@@ -1034,72 +1179,6 @@ function App() {
                 })}
               </div>
             </StudioCard>
-
-            <StudioCard
-              title="Blind Card Library"
-              subtitle="Curate practice decks the same way you curate work rituals."
-              action={<span className="section-chip">{filteredBlind.length} visible</span>}
-            >
-              <div className="filters-column">
-                <input
-                  placeholder="Search prompts"
-                  value={filters.search}
-                  onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-                />
-                <select
-                  value={filters.category}
-                  onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}
-                >
-                  {blindCategories.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-                <select
-                  value={filters.difficulty}
-                  onChange={(event) => setFilters((current) => ({ ...current, difficulty: event.target.value }))}
-                >
-                  {["All difficulty", "Easy", "Medium", "Hard"].map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="blind-library">
-                {filteredBlind.slice(0, 12).map((item) => {
-                  const tracked = state.items.some((entry) => entry.blindId === item.id);
-                  const solved = state.game.solvedBlind.includes(item.id);
-                  const href = item.premium && state.settings.preferAltLinks ? item.alt : item.link;
-                  return (
-                    <article className={`blind-library-card ${solved ? "is-solved" : ""}`} key={item.id}>
-                      <div className="blind-card-top">
-                        <span>{item.category}</span>
-                        <span>{item.difficulty}</span>
-                      </div>
-                      <strong>
-                        <a href={href} target="_blank" rel="noreferrer">
-                          {item.title}
-                        </a>
-                      </strong>
-                      <p>{solved ? "Solved and logged." : tracked ? "Tracked in your library." : "Ready to route."}</p>
-                      <div className="blind-actions">
-                        <button className="button button-ghost" onClick={() => addBlindItem(item)}>
-                          {tracked ? "Track again" : "Track card"}
-                        </button>
-                        {selectedCustomDeck ? (
-                          <button className="button button-ghost" onClick={() => addBlindItem(item, selectedCustomDeck.id)}>
-                            Add to {selectedCustomDeck.name}
-                          </button>
-                        ) : null}
-                        <button className="button button-primary" disabled={solved} onClick={() => toggleSolved(item.id)}>
-                          {solved ? "Solved" : "Mark solved"}
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </StudioCard>
-
             <StudioCard
               title="Session Log"
               subtitle="Recent wins, reminders, and ritual echoes."
@@ -1113,6 +1192,28 @@ function App() {
                 )}
               </div>
             </StudioCard>
+              </>
+            ) : (
+              <StudioCard
+                title="Side Notes"
+                subtitle="Only light supporting context while you work through the current view."
+                action={<span className="section-chip">Quiet mode</span>}
+              >
+                <div className="side-summary">
+                  <MetricCell label="Active deck" value={activeDeck?.name || "None"} />
+                  <MetricCell label="Cards ready" value={activeDeckItems.length} />
+                  <MetricCell label="Custom decks" value={customDecks.length} />
+                  <MetricCell label="Status" value={status.length > 18 ? "Live" : status} />
+                </div>
+                <div className="soft-note">
+                  {activeView === "today"
+                    ? "The app is intentionally showing less right now so your next action is easier to see."
+                    : activeView === "decks"
+                      ? "Build or choose a deck here, then switch back to Today when you want to review."
+                      : "Use Library to route cards into decks without the rest of the workspace competing for attention."}
+                </div>
+              </StudioCard>
+            )}
           </aside>
         </section>
       </main>
